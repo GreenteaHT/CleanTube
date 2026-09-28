@@ -1,0 +1,80 @@
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+}
+
+.options h1 {
+  margin-bottom: 4px;
+  font-size: 22px;
+}
+
+.options h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.options section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.options .field {
+  margin: 6px 0;
+}
+
+.options footer {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ListEditor */
+
+.list-editor .count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.list-editor ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list-editor li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.list-editor li button {
+  padding: 0 8px;
+  border: none;
+  background: none;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.list-editor li button:hover {
+  color: var(--fg);
+}
+
+.list-editor .empty {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
