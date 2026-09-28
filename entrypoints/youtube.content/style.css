@@ -3,21 +3,6 @@
  * 유튜브 페이지 전체에 적용되므로 우리 속성 셀렉터로만 범위를 좁힌다.
  */
 
-/* 숨기기 모드 */
-[data-cleantube='hide'] {
+[data-cleantube-blocked] {
   display: none !important;
-}
-
-/* 흐리게 모드: 마우스를 올리면 잠시 보인다 */
-[data-cleantube='blur'] {
-  filter: blur(12px) grayscale(1);
-  opacity: 0.5;
-  transition:
-    filter 0.2s ease,
-    opacity 0.2s ease;
-}
-
-[data-cleantube='blur']:hover {
-  filter: none;
-  opacity: 1;
 }

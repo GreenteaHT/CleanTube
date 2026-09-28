@@ -1,41 +1,12 @@
-.options {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 32px 20px 60px;
-}
+/* ListEditor 컴포넌트 전용. 색과 글꼴은 assets/base.css의 변수를 쓴다. */
 
-.options h1 {
-  margin-bottom: 4px;
-  font-size: 22px;
-}
-
-.options h2 {
+.list-editor h2 {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
-  font-size: 15px;
+  margin-bottom: 8px;
+  font-size: 14px;
 }
-
-.options section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.options .field {
-  margin: 6px 0;
-}
-
-.options footer {
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-/* ListEditor */
 
 .list-editor .count {
   font-size: 12px;
@@ -59,6 +30,12 @@
   padding: 6px 10px;
   border-radius: 6px;
   background: var(--surface);
+}
+
+.list-editor li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .list-editor li button {

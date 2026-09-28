@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import './ListEditor.css';
 
 interface Props {
   title: string;
@@ -7,7 +8,7 @@ interface Props {
   onChange: (items: string[]) => void;
 }
 
-/** 문자열 목록을 추가·삭제하는 공용 컴포넌트. 키워드와 채널 목록에 쓴다. */
+/** 문자열 목록을 추가·삭제하는 공용 컴포넌트. 지금은 차단 작성자 목록에 쓴다. */
 export default function ListEditor({ title, placeholder, items, onChange }: Props) {
   const [draft, setDraft] = useState('');
 

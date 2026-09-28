@@ -7,7 +7,7 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
     name: 'CleanTube',
-    description: '유튜브 영상과 댓글을 키워드·채널 기준으로 숨기거나 흐리게 처리합니다.',
+    description: '유튜브에서 지정한 작성자의 댓글을 숨깁니다.',
     permissions: ['storage'],
   },
 });

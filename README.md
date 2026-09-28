@@ -1,7 +1,12 @@
 # CleanTube
 
-유튜브 영상과 댓글을 키워드·채널 기준으로 숨기거나 흐리게 처리하는 크롬 확장기능.
-[WXT](https://wxt.dev) + React + TypeScript로 만들었다.
+유튜브에서 지정한 작성자의 댓글을 숨기는 크롬 확장기능.
+[WXT](https://wxt.dev) + React + TypeScript로 만들고 있다. 한 단계씩 기능을 늘려 가는 중이다.
+
+## 지금 되는 것 (1단계)
+
+- 팝업에서 작성자(@핸들 또는 채널명)를 목록에 넣으면 그 사람의 댓글과 답글이 사라진다.
+- 목록에서 빼면 바로 다시 보인다.
 
 ## 실행
 
@@ -20,21 +25,19 @@ npm run compile    # 타입 검사만
 
 ```
 entrypoints/
-  youtube.content/   유튜브 페이지 안에서 실행. DOM을 감시해서 영상·댓글을 숨긴다.
-    index.ts         MutationObserver + 매칭 로직 호출 + data-cleantube 속성 토글
-    style.css        data-cleantube 속성에 따라 display:none 또는 blur
-  popup/             툴바 아이콘 팝업 (React). 켜기/끄기, 모드, 키워드 빠른 추가
-  options/           상세 설정 페이지 (React). 키워드·채널 목록 관리
-  background.ts      서비스 워커. 지금은 아무것도 안 함
+  youtube.content/   유튜브 페이지 안에서 실행. 댓글을 감시해서 작성자를 확인하고 숨긴다.
+    index.ts         MutationObserver + 작성자 추출 + data-cleantube-blocked 속성 토글
+    style.css        data-cleantube-blocked 속성이 있으면 display:none
+  popup/             툴바 아이콘 팝업 (React). 차단 작성자 목록 편집
 components/
-  ListEditor.tsx     문자열 목록 추가·삭제 UI
+  ListEditor.tsx     문자열 목록 추가·삭제 UI (+ ListEditor.css)
 hooks/
   useSettings.ts     settings 읽기·쓰기·구독 훅
 utils/
   settings.ts        Settings 타입 + chrome.storage.sync 정의
   matcher.ts         순수 매칭 함수 (DOM 의존 없음)
 assets/
-  base.css           팝업·옵션 공통 스타일
+  base.css           팝업 기본 스타일
 wxt.config.ts        manifest에 들어갈 name, permissions 등
 ```
 
@@ -43,33 +46,29 @@ WXT가 `entrypoints/` 구조를 읽어서 `manifest.json`을 자동 생성한다
 
 ## 동작 방식
 
-1. 콘텐츠 스크립트가 유튜브 페이지에 주입되면 `chrome.storage.sync`에서 설정을 읽는다.
-2. `MutationObserver`로 DOM 변경을 감시한다. 유튜브는 SPA라 페이지 이동 시 스크립트가
-   다시 실행되지 않으므로, 새 요소가 붙을 때마다 다시 스캔한다.
-3. 영상 카드(`ytd-rich-item-renderer` 등)와 댓글(`ytd-comment-view-model`)을 찾아
-   제목·채널·본문을 읽고, 설정의 키워드·채널과 비교한다.
-4. 매칭되면 `data-cleantube="hide|blur"` 속성을 붙인다. 실제 숨김은 CSS가 담당한다.
-   DOM을 지우지 않으므로 설정을 바꾸면 즉시 되돌아온다.
-5. 팝업·옵션에서 설정을 바꾸면 `storage.watch()`로 콘텐츠 스크립트가 즉시 반영한다.
+1. 콘텐츠 스크립트가 유튜브 페이지에 주입되면 `chrome.storage.sync`에서 차단 목록을 읽는다.
+2. `MutationObserver`로 DOM 변경을 감시한다. 댓글은 스크롤해야 뒤늦게 붙고, 유튜브는 SPA라
+   페이지를 옮겨도 스크립트가 다시 실행되지 않으므로, 새 요소가 붙을 때마다 다시 스캔한다.
+3. 댓글(`ytd-comment-view-model`)마다 `#author-text`에서 표시 이름과 @핸들을 읽어 차단 목록과 비교한다.
+4. 매칭되면 `data-cleantube-blocked="<항목>"` 속성을 붙인다. 실제 숨김은 CSS가 담당한다.
+   DOM을 지우지 않으므로 목록에서 빼면 즉시 되돌아온다.
+5. 팝업에서 목록을 바꾸면 `storage.watch()`로 콘텐츠 스크립트가 즉시 반영한다.
 
-디버깅할 때는 개발자 도구에서 `[data-cleantube]`를 검색하면 숨겨진 요소와
-`data-cleantube-reason` 속성으로 숨긴 이유를 볼 수 있다.
+디버깅할 때는 개발자 도구에서 `[data-cleantube-blocked]`를 검색하면 숨겨진 댓글과
+매칭된 항목을 볼 수 있다.
 
 ## 유의사항
 
 - 유튜브 DOM 구조는 예고 없이 바뀐다. 셀렉터는 `entrypoints/youtube.content/index.ts` 상단에
   모아뒀으니 안 먹히면 거기부터 확인.
-- `chrome.storage.sync`는 항목당 8KB 제한이 있다. 키워드를 수백 개 이상 넣으면
-  `local`로 바꾸는 것을 고려.
-- 다른 사이트를 추가하려면 `entrypoints/<사이트>.content/` 폴더를 만들고
-  `matches`와 셀렉터만 바꾸면 된다. `utils/matcher.ts`는 그대로 재사용.
+- `chrome.storage.sync`는 항목당 8KB 제한이 있다.
 
 ## 문서
 
 - [docs/architecture.md](docs/architecture.md) 구조와 데이터 흐름
 - [docs/decisions.md](docs/decisions.md) 설계 결정과 이유
-- [docs/backlog.md](docs/backlog.md) 할 일
-- [CLAUDE.md](CLAUDE.md) 코딩 규칙과 커밋 양식
+- [docs/backlog.md](docs/backlog.md) 현재 단계의 할 일과 다음 단계 후보
+- [CLAUDE.md](CLAUDE.md) 진행 방식, 코딩 규칙, 커밋 양식
 
 ## 라이선스
 

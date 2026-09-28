@@ -1,59 +1,15 @@
 .popup {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   width: 300px;
   padding: 14px;
-}
-
-.popup header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .popup h1 {
   font-size: 16px;
 }
 
-.popup .field + .field {
-  margin-top: 12px;
-}
-
-.segmented {
-  display: flex;
-}
-
-.segmented button {
-  flex: 1;
-  border-radius: 0;
-}
-
-.segmented button:first-child {
-  border-radius: 6px 0 0 6px;
-}
-
-.segmented button:last-child {
-  border-radius: 0 6px 6px 0;
-}
-
-.segmented button.active {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-color: transparent;
-}
-
-.checks {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.popup footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+.popup p {
+  margin: 0;
 }

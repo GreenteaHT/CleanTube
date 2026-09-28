@@ -1,4 +1,4 @@
-/* 팝업과 옵션 페이지가 공유하는 기본 스타일 */
+/* 팝업 기본 스타일. 색, 글꼴, 버튼, 입력창. */
 
 :root {
   --bg: #ffffff;
@@ -6,8 +6,6 @@
   --muted: #6b6b6b;
   --border: #dcdcdc;
   --surface: #f4f4f4;
-  --accent: #cc2b2b;
-  --accent-fg: #ffffff;
 
   color-scheme: light dark;
   font-family:
@@ -28,7 +26,6 @@
     --muted: #a0a0a0;
     --border: #3a3a3a;
     --surface: #2a2a2a;
-    --accent: #e04b4b;
   }
 }
 
@@ -80,24 +77,6 @@ button:disabled {
   cursor: default;
 }
 
-button.link {
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--accent);
-}
-
-fieldset {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-fieldset:disabled {
-  opacity: 0.5;
-}
-
 .row {
   display: flex;
   gap: 6px;
@@ -110,22 +89,4 @@ fieldset:disabled {
 .muted {
   color: var(--muted);
   font-size: 12px;
-}
-
-.check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.label {
-  font-size: 12px;
-  color: var(--muted);
 }
