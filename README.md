@@ -63,3 +63,14 @@ WXT가 `entrypoints/` 구조를 읽어서 `manifest.json`을 자동 생성한다
   `local`로 바꾸는 것을 고려.
 - 다른 사이트를 추가하려면 `entrypoints/<사이트>.content/` 폴더를 만들고
   `matches`와 셀렉터만 바꾸면 된다. `utils/matcher.ts`는 그대로 재사용.
+
+## 문서
+
+- [docs/architecture.md](docs/architecture.md) 구조와 데이터 흐름
+- [docs/decisions.md](docs/decisions.md) 설계 결정과 이유
+- [docs/backlog.md](docs/backlog.md) 할 일
+- [CLAUDE.md](CLAUDE.md) 코딩 규칙과 커밋 양식
+
+## 라이선스
+
+[GPL-3.0](LICENSE)
