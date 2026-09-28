@@ -2,6 +2,7 @@
   "name": "cleantube",
   "description": "유튜브 영상과 댓글을 키워드·채널 기준으로 숨기거나 흐리게 처리하는 크롬 확장기능",
   "private": true,
+  "license": "GPL-3.0-only",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

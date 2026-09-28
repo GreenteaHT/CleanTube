@@ -1,0 +1,3 @@
+# All text files use LF in both repo and working tree. Avoids Windows autocrlf warnings.
+* text=auto eol=lf
+*.png binary
