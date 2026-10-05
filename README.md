@@ -5,9 +5,12 @@
 
 ## 지금 되는 것
 
-- 팝업에서 작성자(@핸들 또는 채널 ID)를 목록에 넣으면 그 사람의 댓글과 답글이 사라진다.
+- 댓글에 마우스를 올리면 오른쪽에 CleanTube 버튼이 나타난다. 눌러서 "이 작성자 숨기기"를 고르면
+  그 사람의 댓글이 접히며 사라진다. 최상위 댓글이면 답글 묶음까지 스레드째로 숨긴다.
+- 팝업에서 작성자(@핸들 또는 채널 ID)를 직접 목록에 넣어도 된다.
 - 목록에서 빼면 바로 다시 보인다.
-- 핸들은 본인이 바꿀 수 있고 채널 ID(`UC…`)는 바뀌지 않는다.
+- 이미 숨긴 작성자의 댓글은 스크롤로 새로 불러와도 화면에 나타나지 않는다.
+- 핸들은 본인이 바꿀 수 있고 채널 ID(`UC…`)는 바뀌지 않는다. 메뉴와 패널은 채널 ID로 넣는다.
 - 팝업에서 "디버그 패널"을 켜면 유튜브 화면 오른쪽에 확장기능이 읽은 댓글 목록(핸들, 채널 ID, 매칭 결과)이
   뜨고, 줄마다 차단/해제 버튼이 있다. 차단은 채널 ID로 들어간다.
 
@@ -29,8 +32,10 @@ npm run compile    # 타입 검사만
 ```
 entrypoints/
   youtube.content/   유튜브 페이지 안에서 실행. 댓글을 감시해서 작성자를 확인하고 숨긴다.
-    index.ts         MutationObserver + 작성자 읽기 + data-cleantube-blocked 속성 토글
-    style.css        data-cleantube-blocked 속성이 있으면 display:none
+    index.ts         MutationObserver + 작성자 읽기 + 스캔
+    style.css        페이지에 적용. data-cleantube-blocked면 display:none, 메뉴 버튼 모양
+    hide.ts          무엇을 숨길지(답글은 그 답글, 최상위는 스레드)와 접히는 애니메이션
+    menu.ts/.css     댓글 메뉴. 댓글마다 버튼, 드롭다운은 Shadow DOM 안에 하나
     panel.ts/.css    디버그 패널. Shadow DOM 안에 읽은 댓글 목록과 차단/해제 버튼
   youtube-main.content.ts
                      페이지(MAIN) 세계에서 실행. 댓글 요소에 채널 ID를 속성으로 적는다.
@@ -56,13 +61,16 @@ WXT가 `entrypoints/` 구조를 읽어서 `manifest.json`을 자동 생성한다
 1. 콘텐츠 스크립트가 유튜브 페이지에 주입되면 `chrome.storage.sync`에서 차단 목록을 읽는다.
 2. `MutationObserver`로 DOM 변경을 감시한다. 댓글은 스크롤해야 뒤늦게 붙고, 유튜브는 SPA라
    페이지를 옮겨도 스크립트가 다시 실행되지 않으므로, 새 요소가 붙을 때마다 다시 스캔한다.
+   새로 붙은 댓글은 화면에 칠해지기 전에 바로 처리하고, 전체 스캔은 150ms로 묶는다.
 3. 스캔할 때마다 먼저 페이지 세계 스크립트에 요청해서, 댓글 요소마다 작성자의 채널 ID를
    `data-cleantube-channel-id` 속성으로 적게 한다. 채널 ID는 HTML에 없고 유튜브가 요소에 달아 둔
    JS 객체에만 있는데, 그 객체는 페이지 세계에서만 보이기 때문이다.
 4. 댓글(`ytd-comment-view-model`)마다 `#author-text`의 @핸들과 위의 채널 ID를 읽어 차단 목록과 비교한다.
-5. 매칭되면 `data-cleantube-blocked="<항목>"` 속성을 붙인다. 실제 숨김은 CSS가 담당한다.
+5. 매칭되면 `data-cleantube-blocked="<항목>"` 속성을 붙인다. 답글이면 그 답글에, 최상위 댓글이면
+   스레드(`ytd-comment-thread-renderer`)에. 실제 숨김은 CSS가 담당한다.
    DOM을 지우지 않으므로 목록에서 빼면 즉시 되돌아온다.
-6. 팝업이나 패널에서 목록을 바꾸면 `storage.watch()`로 콘텐츠 스크립트가 즉시 반영한다.
+6. 팝업, 댓글 메뉴, 패널 어디서 목록을 바꾸든 `storage.watch()`로 콘텐츠 스크립트가 즉시 반영한다.
+   이때만 접히고 펼쳐지는 애니메이션을 보여 준다.
 
 디버깅할 때는 팝업에서 디버그 패널을 켜면 된다. 개발자 도구에서는 `[data-cleantube-blocked]`를
 검색하면 숨겨진 댓글과 매칭된 항목을 볼 수 있다.
@@ -71,7 +79,8 @@ WXT가 `entrypoints/` 구조를 읽어서 `manifest.json`을 자동 생성한다
 
 - 유튜브 DOM 구조는 예고 없이 바뀐다. 안 먹히면 댓글 셀렉터(`utils/youtube.ts`),
   작성자 읽기(`entrypoints/youtube.content/index.ts`의 `readAuthor`),
-  채널 ID 읽기(`entrypoints/youtube-main.content.ts`) 순서로 확인.
+  채널 ID 읽기(`entrypoints/youtube-main.content.ts`),
+  스레드와 메뉴 자리(`hide.ts`, `menu.ts` 상단의 셀렉터) 순서로 확인.
 - `chrome.storage.sync`는 항목당 8KB 제한이 있다.
 
 ## 문서

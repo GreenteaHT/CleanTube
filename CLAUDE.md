@@ -14,7 +14,7 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 
 자세한 건 [docs/architecture.md](docs/architecture.md). 요약:
 
-- `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 `data-cleantube-blocked` 속성을 붙인다. `panel.ts`는 디버그 패널(Shadow DOM, React 없음).
+- `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 `data-cleantube-blocked` 속성을 붙인다. `hide.ts`는 무엇을 숨길지와 애니메이션, `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
 - `entrypoints/popup/` React UI. 차단 작성자 목록 편집. `useSettings` 훅으로 설정을 읽고 쓴다.
 - `utils/settings.ts` Settings 타입과 storage 정의. 설정 항목을 추가할 때 여기서 시작.
@@ -34,7 +34,8 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - 주석은 "왜"만 적는다. "무엇을"은 이름과 타입으로 설명한다.
 - `utils/matcher.ts`는 DOM, storage, WXT를 import하지 않는다. 단위 테스트가 가능해야 한다.
 - `entrypoints/youtube-main.content.ts`와 `utils/youtube.ts`는 페이지 세계에서 돈다. 확장기능 API(storage, runtime)를 쓰지 않는다.
-- 콘텐츠 스크립트는 DOM을 지우지 않는다. 속성만 토글해서 목록에서 빼면 되돌아오게 한다.
+- 콘텐츠 스크립트는 유튜브 DOM을 지우지 않는다. 숨김은 속성만 토글해서 목록에서 빼면 되돌아오게 한다. 우리 UI(메뉴 버튼)를 추가하는 건 괜찮다.
+- 댓글 메뉴 항목은 `index.ts`의 `createCommentMenu` 호출에 `{ label, run }` 한 줄로 추가한다.
 - 새 설정 항목은 `Settings` 타입, `DEFAULT_SETTINGS`, UI, 콘텐츠 스크립트 순서로 추가한다.
 - 유튜브 셀렉터를 추가하거나 바꾸면 어느 화면의 어떤 요소인지 주석에 적는다.
 
