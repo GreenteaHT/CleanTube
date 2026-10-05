@@ -19,6 +19,19 @@ export interface BlockEntry {
   handle?: string;
   /** 임시 차단이 풀리는 시각(epoch ms). 없으면 영구 차단. */
   until?: number;
+  /** 차단한 시각(epoch ms). 이 필드가 생기기 전에 만든 항목에는 없다. */
+  at?: number;
+  /** 어느 댓글을 보고 차단했는지. 댓글 메뉴나 패널에서 차단했을 때만 있다. 매칭에는 쓰지 않는다. */
+  source?: BlockSource;
+}
+
+/** 차단할 때 보고 있던 댓글. 나중에 목록에서 왜 차단했는지 떠올릴 수 있게 남긴다. */
+export interface BlockSource {
+  /** 그 댓글로 바로 가는 주소. */
+  url: string;
+  videoTitle?: string;
+  /** 댓글 내용. 길면 잘라서 넣는다. */
+  text?: string;
 }
 
 /** 핸들 비교 전 정규화. 앞뒤 공백과 대소문자, 앞의 @는 무시한다. */

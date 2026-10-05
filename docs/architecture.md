@@ -39,6 +39,7 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 | `youtube.content/style.css` | content_scripts.css | 페이지에 적용되는 CSS. 세 가지 표시 방법, 가림막, 댓글 메뉴 버튼 모양 |
 | `youtube.content/display.ts` | (index.ts에 번들됨) | 표시 방법 적용. 무엇을 가릴지, 접히고 펼쳐지는 애니메이션, 가림막 |
 | `youtube.content/menu.ts` + `menu.css` | (index.ts에 번들됨) | 댓글 메뉴. `menu.css`는 `?inline`으로 Shadow DOM 안에만 넣는다 |
+| `youtube.content/source.ts` | (index.ts에 번들됨) | 차단할 때 그 댓글의 주소, 영상 제목, 내용을 읽는다 |
 | `youtube.content/panel.ts` + `panel.css` | (index.ts에 번들됨) | 디버그 패널. `panel.css`는 `?inline`으로 문자열로 가져와 Shadow DOM 안에만 넣는다 |
 | `youtube-main.content.ts` | content_scripts (`world: MAIN`, `document_start`) | 요청을 받으면 댓글 요소에 채널 ID를 속성으로 적는다 |
 | `popup/` | action.default_popup | 차단 목록, 영구/임시 차단 설정, 디버그 패널 토글 |
@@ -56,6 +57,8 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 | `channelId` | string? | 메뉴나 패널에서 차단하면 들어간다. 있으면 이것으로 매칭한다 |
 | `handle` | string? | 손으로 입력한 항목은 이것만 있다. `channelId`가 있을 때는 목록에 보여 줄 이름이기도 하다 |
 | `until` | number? | 임시 차단이 풀리는 시각(epoch ms). 없으면 영구 차단 |
+| `at` | number? | 차단한 시각(epoch ms). 이 필드가 생기기 전에 만든 항목에는 없다 |
+| `source` | `{ url, videoTitle?, text? }`? | 어느 댓글을 보고 차단했는지. 댓글 메뉴나 패널에서 차단했을 때만 있다. 매칭에는 쓰지 않는다 |
 
 - `addBlock(entry)` 같은 대상의 기존 항목을 새 항목으로 바꾼다. 임시를 영구로 바꾸거나 기간을 다시 정할 때.
 - `removeBlock(entry)` 같은 대상의 항목을 뺀다.
@@ -119,9 +122,21 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 - 유튜브 ⋮의 왼쪽에 나란히 놓는다. 이 자리는 원래 `display:block`이라 그냥 넣으면 ⋮ 아래로 쌓여서, 우리 버튼이 들어 있을 때만 `display:flex`로 바꾼다.
 - 버튼 색은 직접 정한다. 이 자리에서 상속받는 글자색은 테마와 상관없이 검정이라 어두운 테마에서 안 보인다. `html[dark]`이면 밝은 색.
 - 드롭다운은 `<cleantube-menu>`의 Shadow DOM 안에 그린다. 버튼 아래에 오른쪽 정렬로 열리고, 메뉴 밖 클릭·Esc·스크롤·페이지 이동이면 닫힌다. 유튜브의 `<html dark>`를 읽어 테마를 맞춘다.
-- 항목은 `index.ts`에서 `{ label, run(author) }` 목록으로 넘긴다. `label`은 글자이거나 글자를 돌려주는 함수다. 함수면 메뉴를 열 때마다 다시 읽는다.
+- 항목은 `index.ts`에서 `{ label, run(author, comment) }` 목록으로 넘긴다. `label`은 글자이거나 글자를 돌려주는 함수다. 함수면 메뉴를 열 때마다 다시 읽는다. `comment`는 메뉴를 연 그 댓글 요소다.
 - 지금 항목은 둘이다. "영구 차단"과 "임시 차단 · 7일". 임시 차단의 기간은 메뉴에서 고르지 않고 팝업 설정(`temporaryDurationMs`)에서 정한다. 얼마 동안인지 누르기 전에 알 수 있게 항목 글자에 적는다.
 - 유튜브의 ⋮ 메뉴는 건드리지 않는다. 이유는 decisions.md.
+
+### 차단한 경위: `youtube.content/source.ts`
+
+메뉴나 패널에서 차단하면 `readSource(comment)`가 그 댓글에서 세 가지를 읽어 항목의 `source`에 넣는다. 나중에 목록에서 왜 차단했는지 떠올릴 수 있게 하려는 것이다.
+
+| 값 | 어디서 | 비고 |
+|---|---|---|
+| `url` | 댓글의 작성 시각("6년 전")에 걸린 링크 `#published-time-text a` | `/watch?v=<영상>&lc=<댓글>`. 열면 그 댓글이 맨 위에 강조돼 나온다. 답글은 `lc`가 `부모.답글` 꼴이다. 유튜브 주소가 아니면 남기지 않는다 |
+| `videoTitle` | `ytd-watch-metadata #title yt-formatted-string` | 못 찾으면 `document.title`에서 " - YouTube"를 뗀 것. 150자에서 자른다 |
+| `text` | 댓글 본문 `#content-text` | 유튜브는 이모지를 `<img alt="😭">`로 그려서 `textContent`만 읽으면 빠진다. 그림의 `alt`를 같이 읽는다. 300자에서 자른다 |
+
+차단한 시각은 `at`에 따로 넣는다. 팝업에서 손으로 넣은 항목은 `at`만 있고 `source`는 없다.
 
 ### 디버그 패널: `youtube.content/panel.ts`
 
@@ -159,6 +174,9 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 | `ytd-comment-thread-renderer` | `youtube.content/display.ts` | 최상위 댓글 하나와 그 답글 묶음을 감싸는 요소 |
 | `ytd-comment-replies-renderer` | `youtube.content/display.ts` | 스레드 안의 답글 묶음. 이 안의 댓글은 답글 |
 | `#body > #action-menu` | `youtube.content/menu.ts` | 댓글 오른쪽, 유튜브가 ⋮ 메뉴를 두는 자리. 로그아웃이면 유튜브 버튼은 `hidden`이고 자리만 있다 |
+| `#published-time-text a` | `youtube.content/source.ts` | 댓글 헤더의 작성 시각에 걸린 링크. 그 댓글의 고유 주소 |
+| `#content-text` | `youtube.content/source.ts` | 댓글 본문 |
+| `ytd-watch-metadata #title yt-formatted-string` | `youtube.content/source.ts` | 영상 페이지에서 플레이어 아래의 영상 제목 |
 | `html[dark]` | `style.css`, `youtube.content/menu.ts` | 유튜브가 어두운 테마를 표시하는 속성 |
 | `commentEntity.author.channelId` | `youtube-main.content.ts` | 유튜브가 댓글 요소에 달아 두는 데이터. 셀렉터가 아니라 JS 프로퍼티 |
 
@@ -183,4 +201,6 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 - `entrypoints/popup/App.tsx` 차단 목록, 영구 차단 설정(표시 방법), 임시 차단 설정(기간, 표시 방법), 답글도 함께 가리기, 디버그 패널 토글. 기간은 1일·7일·30일 또는 직접 입력(숫자 + 시간/일)이고 ms 하나로 저장한다.
 - `utils/duration.ts` `HOUR_MS`, `DAY_MS`, `formatDuration(ms)`. 팝업과 댓글 메뉴가 같은 표기("7일", "3시간")를 쓰게 한다.
 - `components/BlockList.tsx` 차단 목록 보기와 편집. 이름 자리에 핸들(없으면 채널 ID), 아래에 영구인지 언제까지인지. 손으로 넣는 항목은 영구 차단이다. 만료된 항목은 보여 주지 않는다. 스타일은 옆의 `BlockList.css`.
+  - 항목마다 펼치기 버튼이 있다. 펼치면 차단한 때, 영상 제목, 댓글 내용, "이 댓글로 이동" 링크가 나온다. 한 번에 하나만 펼친다. `at`도 `source`도 없는 예전 항목에는 버튼이 없다.
+  - 링크는 저장된 주소가 유튜브의 https 주소일 때만 만든다. 저장소에 있는 값을 그대로 믿지 않는다.
 - `assets/base.css` 팝업 기본 스타일. 색, 글꼴, 버튼, 입력창.

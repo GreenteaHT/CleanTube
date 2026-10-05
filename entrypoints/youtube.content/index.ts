@@ -7,6 +7,7 @@ import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/y
 import { applyDisplay } from './display';
 import { createCommentMenu } from './menu';
 import { createPanel, type Panel, type PanelRow } from './panel';
+import { readSource } from './source';
 import './style.css';
 
 /** setTimeout이 받을 수 있는 가장 긴 지연. 약 24.8일. 넘으면 바로 실행돼 버린다. */
@@ -31,10 +32,10 @@ export default defineContentScript({
     const menu = await createCommentMenu(
       ctx,
       [
-        { label: '영구 차단', run: (author) => block(author) },
+        { label: '영구 차단', run: (author, comment) => block(author, comment) },
         {
           label: () => `임시 차단 · ${formatDuration(settings.temporaryDurationMs)}`,
-          run: (author) => block(author, settings.temporaryDurationMs),
+          run: (author, comment) => block(author, comment, settings.temporaryDurationMs),
         },
       ],
       readAuthor,
@@ -107,7 +108,7 @@ export default defineContentScript({
       };
       applyDisplay(el, display, { coverReplies: settings.coverReplies, animate });
       menu.attach(el);
-      return { author, hit };
+      return { author, hit, comment: el };
     }
 
     // 채널 ID는 페이지 세계에서만 읽을 수 있어서 youtube-main 스크립트에 적어 달라고 요청한다.
@@ -139,7 +140,7 @@ export default defineContentScript({
         if (panelMounting) return;
         panelMounting = true;
         const created = await createPanel(ctx, {
-          onBlock: (author) => block(author),
+          onBlock: (author, comment) => block(author, comment),
           onUnblock: (entry) => void removeBlock(entry),
         });
         panelMounting = false;
@@ -156,14 +157,20 @@ export default defineContentScript({
       }
     }
 
-    /** durationMs가 없으면 영구 차단. 화면 갱신은 위의 watch가 한다. */
-    function block(author: Author, durationMs?: number) {
+    /**
+     * comment는 차단을 누른 그 댓글. 어느 영상의 어떤 댓글이었는지를 항목에 같이 남긴다.
+     * durationMs가 없으면 영구 차단. 화면 갱신은 위의 watch가 한다.
+     */
+    function block(author: Author, comment: HTMLElement, durationMs?: number) {
       if (!author.channelId && !author.handle) return;
-      const entry: BlockEntry = {};
+      const now = Date.now();
+      const entry: BlockEntry = { at: now };
       // 채널 ID는 핸들을 바꿔도 그대로라 있으면 같이 넣는다. 핸들은 목록에 보여 줄 이름이 된다.
       if (author.channelId) entry.channelId = author.channelId;
       if (author.handle) entry.handle = author.handle;
-      if (durationMs !== undefined) entry.until = Date.now() + durationMs;
+      if (durationMs !== undefined) entry.until = now + durationMs;
+      const source = readSource(comment);
+      if (source) entry.source = source;
       void addBlock(entry);
     }
   },

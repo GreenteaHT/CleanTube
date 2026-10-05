@@ -7,10 +7,12 @@ export interface PanelRow {
   author: Author;
   /** 이 댓글에 걸린 차단 항목. 없으면 차단되지 않은 댓글. */
   hit: BlockEntry | null;
+  /** 그 댓글 요소. 여기서 차단하면 어느 댓글이었는지를 같이 남기려고 들고 있다. */
+  comment: HTMLElement;
 }
 
 interface Handlers {
-  onBlock(author: Author): void;
+  onBlock(author: Author, comment: HTMLElement): void;
   onUnblock(entry: BlockEntry): void;
 }
 
@@ -87,7 +89,7 @@ export async function createPanel(ctx: ContentScriptContext, handlers: Handlers)
     root.append(list);
   }
 
-  function renderRow({ author, hit }: PanelRow): HTMLLIElement {
+  function renderRow({ author, hit, comment }: PanelRow): HTMLLIElement {
     const info = el('div', undefined, 'info');
     info.append(
       author.handle ? el('div', author.handle, 'handle') : el('div', '핸들을 못 읽음', 'handle missing'),
@@ -98,7 +100,7 @@ export async function createPanel(ctx: ContentScriptContext, handlers: Handlers)
     // 패널의 차단은 영구 차단. 임시 차단은 댓글 메뉴에서 한다.
     const button = el('button', hit ? '해제' : '차단');
     button.disabled = !hit && !author.channelId && !author.handle;
-    button.addEventListener('click', () => (hit ? handlers.onUnblock(hit) : handlers.onBlock(author)));
+    button.addEventListener('click', () => (hit ? handlers.onUnblock(hit) : handlers.onBlock(author, comment)));
 
     const li = el('li', undefined, hit ? 'blocked' : undefined);
     li.append(info, button);

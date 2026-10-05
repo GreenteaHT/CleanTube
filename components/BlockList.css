@@ -18,7 +18,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 240px;
+  max-height: 280px;
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
@@ -26,17 +26,22 @@
 }
 
 .block-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+  /* 목록이 넘쳐 스크롤될 때 줄이 눌려 줄어들지 않게 */
+  flex: none;
   padding: 6px 10px;
   border-radius: 6px;
   background: var(--surface);
 }
 
+.block-list .summary {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .block-list .who {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
 }
@@ -53,16 +58,52 @@
   color: var(--muted);
 }
 
-.block-list li button {
-  padding: 0 8px;
+.block-list .summary button {
+  padding: 0 6px;
   border: none;
   background: none;
   font-size: 16px;
   color: var(--muted);
 }
 
-.block-list li button:hover {
+.block-list .summary button:hover {
   color: var(--fg);
+}
+
+/* 펼쳤을 때: 언제, 어느 영상의 어떤 댓글을 보고 차단했는지 */
+.block-list .details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 8px 0 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.block-list .details dt {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.block-list .details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.block-list .details .quote {
+  max-height: 90px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.block-list .details .wide {
+  grid-column: 1 / -1;
+}
+
+.block-list .details a {
+  color: inherit;
 }
 
 .block-list .empty {

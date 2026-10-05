@@ -15,7 +15,7 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 
 자세한 건 [docs/architecture.md](docs/architecture.md). 요약:
 
-- `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 표시 방법에 맞는 속성을 붙인다. `display.ts`는 표시 방법 적용(무엇을 가릴지, 애니메이션, 가림막), `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
+- `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 표시 방법에 맞는 속성을 붙인다. `display.ts`는 표시 방법 적용(무엇을 가릴지, 애니메이션, 가림막), `source.ts`는 차단한 댓글의 주소·제목·내용 읽기, `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
 - `entrypoints/popup/` React UI. 차단 목록, 표시 방법, 디버그 패널 토글. `useSettings`와 `useBlocked` 훅으로 읽고 쓴다.
 - `utils/blocklist.ts` 차단 목록. `storage.local`. 쓰기는 `addBlock`/`removeBlock`으로만 한다.

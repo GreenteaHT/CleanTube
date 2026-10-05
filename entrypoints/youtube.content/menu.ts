@@ -5,7 +5,8 @@ import css from './menu.css?inline';
 export interface MenuItem {
   /** 설정에 따라 달라지는 글자는 함수로 준다. 메뉴를 열 때마다 다시 읽는다. */
   label: string | (() => string);
-  run(author: Author): void;
+  /** comment는 메뉴를 연 그 댓글 요소. */
+  run(author: Author, comment: HTMLElement): void;
 }
 
 export interface CommentMenu {
@@ -117,7 +118,7 @@ export async function createCommentMenu(
       button.disabled = !author.handle && !author.channelId;
       button.addEventListener('click', () => {
         close();
-        item.run(author);
+        item.run(author, comment);
       });
       root.append(button);
     }
