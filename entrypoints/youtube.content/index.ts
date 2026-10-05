@@ -3,6 +3,7 @@ import { loadSettings, settingsItem, withDefaults, type Settings } from '@/utils
 import { findAuthor, type Author } from '@/utils/matcher';
 import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
 import { hideTargetOf, setHidden } from './hide';
+import { createCommentMenu } from './menu';
 import { createPanel, type Panel, type PanelRow } from './panel';
 import './style.css';
 
@@ -16,6 +17,9 @@ export default defineContentScript({
     let panel: Panel | undefined;
     let panelMounting = false;
 
+    // 댓글마다 붙는 메뉴. 항목은 여기에 한 줄씩 추가한다.
+    const menu = await createCommentMenu(ctx, [{ label: '이 작성자 숨기기', run: block }], readAuthor);
+
     // DOM 변경이 몰려와도 150ms에 한 번만 스캔한다. 값은 임시. 실측 후 다시 정한다 (backlog).
     let timer: number | undefined;
     const schedule = () => {
@@ -28,7 +32,7 @@ export default defineContentScript({
 
     // 유튜브는 SPA라 페이지를 옮겨도 스크립트가 다시 실행되지 않는다.
     // 댓글은 스크롤해야 뒤늦게 붙기도 한다. 그래서 DOM 변경을 감시해서 그때마다 스캔한다.
-    // 패널은 Shadow DOM 안에 그리므로 패널을 다시 그려도 이 감시에 잡히지 않는다.
+    // 패널과 메뉴는 Shadow DOM 안에 그리므로 다시 그려도 이 감시에 잡히지 않는다.
     const observer = new MutationObserver((records) => {
       // 새로 붙은 댓글은 여기서 바로 처리한다. 이 콜백은 DOM이 바뀐 직후, 화면에 칠하기 전에 돌아서
       // 이미 차단된 작성자의 댓글이 한 번도 보이지 않는다. 나머지는 묶어서 스캔한다.
@@ -42,7 +46,7 @@ export default defineContentScript({
     observer.observe(document.documentElement, { childList: true, subtree: true });
     ctx.onInvalidated(() => observer.disconnect());
 
-    // 팝업이나 패널에서 바꾸면 storage를 거쳐 여기로 온다. 사용자가 누른 변경이라 애니메이션을 켠다.
+    // 팝업, 패널, 메뉴 어디서 바꾸든 storage를 거쳐 여기로 온다. 사용자가 누른 변경이라 애니메이션을 켠다.
     const unwatch = settingsItem.watch((next) => {
       settings = withDefaults(next);
       applyAll(true);
@@ -66,6 +70,7 @@ export default defineContentScript({
       const author = readAuthor(el);
       const hit = findAuthor(author, settings.blockedAuthors);
       setHidden(hideTargetOf(el), hit, animate);
+      menu.attach(el);
       return { author, hit };
     }
 

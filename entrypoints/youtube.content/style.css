@@ -6,3 +6,54 @@
 [data-cleantube-blocked] {
   display: none !important;
 }
+
+/*
+ * 유튜브 ⋮(로그인 상태에서만 보임)와 우리 버튼을 나란히 놓는다. 우리 버튼이 왼쪽.
+ * 이 자리는 원래 block이라 그냥 넣으면 ⋮ 아래로 쌓인다.
+ */
+#action-menu:has(> button[data-cleantube-trigger]) {
+  display: flex;
+  align-items: center;
+}
+
+/*
+ * 댓글 오른쪽 ⋮ 자리에 넣는 CleanTube 메뉴 버튼. 유튜브처럼 댓글에 마우스를 올렸을 때만 보인다.
+ * 유튜브 요소 안에 들어가므로 all:unset으로 유튜브 button 스타일을 끊고 시작한다.
+ * 이 자리에서 상속받는 글자색은 테마와 상관없이 검정이라 직접 정한다. 유튜브는 어두운 테마를 <html dark>로 표시한다.
+ */
+button[data-cleantube-trigger] {
+  all: unset;
+  box-sizing: border-box;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #0f0f0f;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+html[dark] button[data-cleantube-trigger] {
+  color: #f1f1f1;
+}
+
+button[data-cleantube-trigger] svg {
+  width: 20px;
+  height: 20px;
+}
+
+ytd-comment-view-model:hover button[data-cleantube-trigger],
+ytd-comment-renderer:hover button[data-cleantube-trigger],
+button[data-cleantube-trigger]:focus-visible,
+button[data-cleantube-trigger][aria-expanded='true'] {
+  opacity: 1;
+}
+
+button[data-cleantube-trigger]:hover,
+button[data-cleantube-trigger][aria-expanded='true'] {
+  background: rgba(128, 128, 128, 0.2);
+}
