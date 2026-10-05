@@ -1,6 +1,6 @@
 # CleanTube
 
-유튜브에서 지정한 작성자의 댓글을 숨기는 크롬 확장기능.
+유튜브에서 지정한 작성자의 댓글을 가리는 크롬 확장기능.
 WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이다.
 
 ## 명령어
@@ -8,18 +8,27 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - `npm run dev` 확장기능이 로드된 크롬을 띄운다. 코드를 고치면 자동 반영.
 - `npm run build` `.output/chrome-mv3/`에 빌드.
 - `npm run compile` 타입 검사만. 커밋 전에 돌린다.
+- `npm test` 단위 테스트(vitest). `utils/matcher.ts`를 고치면 돌린다.
 - `npm run zip` 스토어 제출용 zip.
 
 ## 구조
 
 자세한 건 [docs/architecture.md](docs/architecture.md). 요약:
 
-- `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 `data-cleantube-blocked` 속성을 붙인다. `hide.ts`는 무엇을 숨길지와 애니메이션, `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
+- `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 표시 방법에 맞는 속성을 붙인다. `display.ts`는 표시 방법 적용(무엇을 가릴지, 애니메이션, 가림막), `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
-- `entrypoints/popup/` React UI. 차단 작성자 목록 편집. `useSettings` 훅으로 설정을 읽고 쓴다.
-- `utils/settings.ts` Settings 타입과 storage 정의. 설정 항목을 추가할 때 여기서 시작.
-- `utils/matcher.ts` 순수 매칭 함수. 브라우저 API 의존 금지.
+- `entrypoints/popup/` React UI. 차단 목록, 표시 방법, 디버그 패널 토글. `useSettings`와 `useBlocked` 훅으로 읽고 쓴다.
+- `utils/blocklist.ts` 차단 목록. `storage.local`. 쓰기는 `addBlock`/`removeBlock`으로만 한다.
+- `utils/settings.ts` Settings 타입과 `storage.sync` 정의. 설정 항목을 추가할 때 여기서 시작.
+- `utils/matcher.ts` 순수 매칭 함수. 브라우저 API 의존 금지. 테스트는 `tests/matcher.test.ts`.
+- `utils/duration.ts` 기간 상수와 표기("7일", "3시간").
 - `utils/youtube.ts` 두 콘텐츠 스크립트가 같이 쓰는 셀렉터와 속성·이벤트 이름.
+
+## 용어
+
+- "차단"은 누구를 가릴지다. 영구 차단과 임시 차단(기간이 지나면 풀림)이 있다.
+- "표시 방법"은 차단된 댓글이 어떻게 보일지다. 완전히 숨기기, 흐리게, "차단된 댓글"로 바꾸기.
+- UI 글자에 "숨기기"를 "차단"의 뜻으로 쓰지 않는다.
 
 ## 진행 방식
 
@@ -32,10 +41,12 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 
 - 식별자는 영어, 주석과 문서는 한글.
 - 주석은 "왜"만 적는다. "무엇을"은 이름과 타입으로 설명한다.
-- `utils/matcher.ts`는 DOM, storage, WXT를 import하지 않는다. 단위 테스트가 가능해야 한다.
+- `utils/matcher.ts`는 DOM, storage, WXT를 import하지 않는다. 현재 시각도 인자로 받는다. 단위 테스트가 가능해야 한다.
 - `entrypoints/youtube-main.content.ts`와 `utils/youtube.ts`는 페이지 세계에서 돈다. 확장기능 API(storage, runtime)를 쓰지 않는다.
-- 콘텐츠 스크립트는 유튜브 DOM을 지우지 않는다. 숨김은 속성만 토글해서 목록에서 빼면 되돌아오게 한다. 우리 UI(메뉴 버튼)를 추가하는 건 괜찮다.
-- 댓글 메뉴 항목은 `index.ts`의 `createCommentMenu` 호출에 `{ label, run }` 한 줄로 추가한다.
+- 콘텐츠 스크립트는 유튜브 DOM을 지우지 않는다. 가림은 속성만 토글해서 차단을 풀면 되돌아오게 한다. 우리 요소(메뉴 버튼, 가림막)를 추가하는 건 괜찮다.
+- 표시 방법의 모양은 `style.css`에만 둔다. `display.ts`는 속성을 붙이고 뗄 뿐이다.
+- 댓글 메뉴 항목은 `index.ts`의 `createCommentMenu` 호출에 `{ label, run }` 한 줄로 추가한다. 고를 값이 여러 개인 설정(기간 같은 것)은 메뉴가 아니라 팝업에 둔다.
+- `main()` 안에서 `let`/`const`는 그것을 쓰는 함수가 처음 불리기 전에 선언한다. 함수 선언은 끌어올려지지만 `let`은 아니어서, 순서가 틀리면 콘텐츠 스크립트가 시작하다 죽는다.
 - 새 설정 항목은 `Settings` 타입, `DEFAULT_SETTINGS`, UI, 콘텐츠 스크립트 순서로 추가한다.
 - 유튜브 셀렉터를 추가하거나 바꾸면 어느 화면의 어떤 요소인지 주석에 적는다.
 
