@@ -1,15 +1,17 @@
 import { storage } from '#imports';
+import { DAY_MS } from './duration';
 
+/** 차단 목록은 여기 없다. 커질 수 있어서 utils/blocklist.ts가 storage.local에 따로 둔다. */
 export interface Settings {
-  /** 댓글을 숨길 작성자. @핸들(대소문자와 앞의 @ 무시) 또는 UC로 시작하는 채널 ID. 정확히 일치 */
-  blockedAuthors: string[];
   /** 유튜브 화면 오른쪽에 읽은 댓글 목록과 차단 버튼을 띄운다. 채널 ID를 손으로 복사하지 않아도 되게. */
   debugPanel: boolean;
+  /** 댓글 메뉴의 "임시 차단"을 눌렀을 때 차단하는 기간(ms). 이미 걸어 둔 임시 차단의 기간은 바뀌지 않는다. */
+  temporaryDurationMs: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  blockedAuthors: [],
   debugPanel: false,
+  temporaryDurationMs: 7 * DAY_MS,
 };
 
 /**

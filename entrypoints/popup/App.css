@@ -25,3 +25,40 @@
 .popup .toggle + .muted {
   margin-top: -8px;
 }
+
+/* 영구 차단, 임시 차단 설정 묶음 */
+.popup .kind {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popup .kind h2 {
+  font-size: 14px;
+}
+
+.popup .field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.popup select,
+.popup input[type='number'] {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+}
+
+/* 기간 직접 입력: 숫자와 단위를 오른쪽에 붙여 놓는다 */
+.popup .custom-duration {
+  justify-content: flex-end;
+}
+
+.popup .custom-duration input {
+  width: 80px;
+}

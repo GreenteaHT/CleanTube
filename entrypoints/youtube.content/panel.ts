@@ -1,17 +1,17 @@
 import { createShadowRootUi, type ContentScriptContext } from '#imports';
-import type { Author } from '@/utils/matcher';
+import { entryKey, type Author, type BlockEntry } from '@/utils/matcher';
 import css from './panel.css?inline';
 
 /** 패널 한 줄 = 화면의 댓글 하나. */
 export interface PanelRow {
   author: Author;
-  /** findAuthor 결과. 값이 있으면 그 항목 때문에 숨겨진 상태. */
-  hit: string | null;
+  /** 이 댓글에 걸린 차단 항목. 없으면 차단되지 않은 댓글. */
+  hit: BlockEntry | null;
 }
 
 interface Handlers {
   onBlock(author: Author): void;
-  onUnblock(item: string): void;
+  onUnblock(entry: BlockEntry): void;
 }
 
 export interface Panel {
@@ -51,7 +51,9 @@ export async function createPanel(ctx: ContentScriptContext, handlers: Handlers)
   return {
     render(next) {
       // 스캔은 자주 돌지만 결과가 같으면 다시 그리지 않는다.
-      const key = next.map((r) => `${r.author.handle}\0${r.author.channelId}\0${r.hit}`).join('\n');
+      const key = next
+        .map((r) => `${r.author.handle}\0${r.author.channelId}\0${r.hit && entryKey(r.hit)}\0${r.hit?.until}`)
+        .join('\n');
       if (key === lastKey) return;
       lastKey = key;
       rows = next;
@@ -65,14 +67,14 @@ export async function createPanel(ctx: ContentScriptContext, handlers: Handlers)
     root.className = collapsed ? 'panel collapsed' : 'panel';
     root.replaceChildren();
 
-    const hiddenCount = rows.filter((r) => r.hit).length;
+    const blockedCount = rows.filter((r) => r.hit).length;
     const toggle = el('button', collapsed ? '펼치기' : '접기');
     toggle.addEventListener('click', () => {
       collapsed = !collapsed;
       draw();
     });
     const header = el('header');
-    header.append(el('strong', 'CleanTube'), el('span', `댓글 ${rows.length} · 숨김 ${hiddenCount}`, 'count'), toggle);
+    header.append(el('strong', 'CleanTube'), el('span', `댓글 ${rows.length} · 차단 ${blockedCount}`, 'count'), toggle);
     root.append(header);
     if (collapsed) return;
 
@@ -91,8 +93,9 @@ export async function createPanel(ctx: ContentScriptContext, handlers: Handlers)
       author.handle ? el('div', author.handle, 'handle') : el('div', '핸들을 못 읽음', 'handle missing'),
       author.channelId ? el('div', author.channelId, 'id') : el('div', '채널 ID를 못 읽음', 'id missing'),
     );
-    if (hit) info.append(el('div', `숨김 · 매칭된 항목: ${hit}`, 'state'));
+    if (hit) info.append(el('div', describe(hit), 'state'));
 
+    // 패널의 차단은 영구 차단. 임시 차단은 댓글 메뉴에서 한다.
     const button = el('button', hit ? '해제' : '차단');
     button.disabled = !hit && !author.channelId && !author.handle;
     button.addEventListener('click', () => (hit ? handlers.onUnblock(hit) : handlers.onBlock(author)));
@@ -101,6 +104,15 @@ export async function createPanel(ctx: ContentScriptContext, handlers: Handlers)
     li.append(info, button);
     return li;
   }
+}
+
+/** 어느 항목 때문에, 언제까지 차단인지. 채널 ID로 걸렸는지 핸들로 걸렸는지가 보이게 키를 적는다. */
+function describe(hit: BlockEntry): string {
+  const kind =
+    hit.until === undefined
+      ? '영구 차단'
+      : `${new Date(hit.until).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}까지 차단`;
+  return `${kind} · ${entryKey(hit)}`;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(

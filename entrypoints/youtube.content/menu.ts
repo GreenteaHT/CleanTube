@@ -3,7 +3,8 @@ import type { Author } from '@/utils/matcher';
 import css from './menu.css?inline';
 
 export interface MenuItem {
-  label: string;
+  /** 설정에 따라 달라지는 글자는 함수로 준다. 메뉴를 열 때마다 다시 읽는다. */
+  label: string | (() => string);
   run(author: Author): void;
 }
 
@@ -101,18 +102,18 @@ export async function createCommentMenu(
     close();
     const author = readAuthor(comment);
 
-    root.replaceChildren();
     // 유튜브는 <html dark>로 테마를 표시한다. Shadow DOM 안에서는 CSS로 못 보니 열 때마다 읽는다.
     root.classList.toggle('dark', document.documentElement.hasAttribute('dark'));
     const who = document.createElement('div');
     who.className = 'who';
     who.textContent = author.handle ?? author.channelId ?? '작성자를 못 읽음';
-    root.append(who);
+    root.replaceChildren(who);
+
     for (const item of items) {
       const button = document.createElement('button');
       button.type = 'button';
       button.setAttribute('role', 'menuitem');
-      button.textContent = item.label;
+      button.textContent = typeof item.label === 'string' ? item.label : item.label();
       button.disabled = !author.handle && !author.channelId;
       button.addEventListener('click', () => {
         close();

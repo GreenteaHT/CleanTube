@@ -1,6 +1,6 @@
-/* ListEditor 컴포넌트 전용. 색과 글꼴은 assets/base.css의 변수를 쓴다. */
+/* BlockList 컴포넌트 전용. 색과 글꼴은 assets/base.css의 변수를 쓴다. */
 
-.list-editor h2 {
+.block-list h2 {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -8,37 +8,52 @@
   font-size: 14px;
 }
 
-.list-editor .count {
+.block-list .count {
   font-size: 12px;
   font-weight: 400;
   color: var(--muted);
 }
 
-.list-editor ul {
+.block-list ul {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-height: 240px;
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
+  overflow-y: auto;
 }
 
-.list-editor li {
+.block-list li {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   padding: 6px 10px;
   border-radius: 6px;
   background: var(--surface);
 }
 
-.list-editor li span {
+.block-list .who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.block-list .name,
+.block-list .detail {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.list-editor li button {
+.block-list .detail {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.block-list li button {
   padding: 0 8px;
   border: none;
   background: none;
@@ -46,11 +61,11 @@
   color: var(--muted);
 }
 
-.list-editor li button:hover {
+.block-list li button:hover {
   color: var(--fg);
 }
 
-.list-editor .empty {
+.block-list .empty {
   margin: 4px 0 0;
   font-size: 13px;
   color: var(--muted);

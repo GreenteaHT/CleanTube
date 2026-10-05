@@ -1,11 +1,16 @@
 import { defineContentScript } from '#imports';
+import { addBlock, blockedItem, loadBlocked, removeBlock } from '@/utils/blocklist';
+import { formatDuration } from '@/utils/duration';
+import { entryKey, findBlock, type Author, type BlockEntry } from '@/utils/matcher';
 import { loadSettings, settingsItem, withDefaults, type Settings } from '@/utils/settings';
-import { findAuthor, type Author } from '@/utils/matcher';
 import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
 import { hideTargetOf, setHidden } from './hide';
 import { createCommentMenu } from './menu';
 import { createPanel, type Panel, type PanelRow } from './panel';
 import './style.css';
+
+/** setTimeout이 받을 수 있는 가장 긴 지연. 약 24.8일. 넘으면 바로 실행돼 버린다. */
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 
 export default defineContentScript({
   matches: ['*://*.youtube.com/*'],
@@ -13,12 +18,27 @@ export default defineContentScript({
 
   async main(ctx) {
     let settings: Settings = await loadSettings();
+    let blocked: BlockEntry[] = await loadBlocked();
     let rows: PanelRow[] = [];
     let panel: Panel | undefined;
     let panelMounting = false;
+    // 아래 함수들이 쓰는 변수는 여기 위쪽에 모아 둔다. 함수는 끌어올려져서 먼저 불릴 수 있지만
+    // let은 그 줄이 실행되기 전에 건드리면 오류가 난다.
+    let expiryTimer: number | undefined;
 
     // 댓글마다 붙는 메뉴. 항목은 여기에 한 줄씩 추가한다.
-    const menu = await createCommentMenu(ctx, [{ label: '이 작성자 숨기기', run: block }], readAuthor);
+    // 임시 차단의 기간은 팝업 설정에서 정한다. 얼마 동안인지 누르기 전에 알 수 있게 글자에 적는다.
+    const menu = await createCommentMenu(
+      ctx,
+      [
+        { label: '영구 차단', run: (author) => block(author) },
+        {
+          label: () => `임시 차단 · ${formatDuration(settings.temporaryDurationMs)}`,
+          run: (author) => block(author, settings.temporaryDurationMs),
+        },
+      ],
+      readAuthor,
+    );
 
     // DOM 변경이 몰려와도 150ms에 한 번만 스캔한다. 값은 임시. 실측 후 다시 정한다 (backlog).
     let timer: number | undefined;
@@ -39,7 +59,8 @@ export default defineContentScript({
       const added = addedComments(records);
       if (added.length > 0) {
         requestChannelIds();
-        for (const el of added) applyOne(el, false);
+        const now = Date.now();
+        for (const el of added) applyOne(el, now, false);
       }
       schedule();
     });
@@ -47,29 +68,38 @@ export default defineContentScript({
     ctx.onInvalidated(() => observer.disconnect());
 
     // 팝업, 패널, 메뉴 어디서 바꾸든 storage를 거쳐 여기로 온다. 사용자가 누른 변경이라 애니메이션을 켠다.
-    const unwatch = settingsItem.watch((next) => {
-      settings = withDefaults(next);
-      applyAll(true);
-      void syncPanel();
-    });
-    ctx.onInvalidated(unwatch);
+    ctx.onInvalidated(
+      blockedItem.watch((next) => {
+        blocked = next ?? [];
+        applyAll(true);
+        scheduleExpiry();
+      }),
+    );
+    ctx.onInvalidated(
+      settingsItem.watch((next) => {
+        settings = withDefaults(next);
+        void syncPanel();
+      }),
+    );
 
     applyAll();
+    scheduleExpiry();
     void syncPanel();
 
     function applyAll(animate = false) {
       requestChannelIds();
+      const now = Date.now();
       rows = [];
       for (const el of document.querySelectorAll<HTMLElement>(COMMENT_SELECTOR)) {
-        rows.push(applyOne(el, animate));
+        rows.push(applyOne(el, now, animate));
       }
       panel?.render(rows);
     }
 
-    function applyOne(el: HTMLElement, animate: boolean): PanelRow {
+    function applyOne(el: HTMLElement, now: number, animate: boolean): PanelRow {
       const author = readAuthor(el);
-      const hit = findAuthor(author, settings.blockedAuthors);
-      setHidden(hideTargetOf(el), hit, animate);
+      const hit = findBlock(author, blocked, now);
+      setHidden(hideTargetOf(el), hit && entryKey(hit), animate);
       menu.attach(el);
       return { author, hit };
     }
@@ -80,11 +110,32 @@ export default defineContentScript({
       document.dispatchEvent(new Event(CHANNEL_ID_REQUEST));
     }
 
+    // 가장 먼저 풀리는 임시 차단 시각에 맞춰 다시 스캔한다.
+    // 스캔은 DOM이 바뀔 때만 돌아서, 그대로 두면 기간이 끝나도 화면이 바뀔 때까지 가려져 있다.
+    function scheduleExpiry() {
+      if (expiryTimer !== undefined) clearTimeout(expiryTimer);
+      expiryTimer = undefined;
+      const now = Date.now();
+      const next = Math.min(...blocked.map((e) => e.until ?? Infinity).filter((until) => until > now));
+      if (!Number.isFinite(next)) return;
+      expiryTimer = ctx.setTimeout(
+        () => {
+          expiryTimer = undefined;
+          applyAll(true);
+          scheduleExpiry();
+        },
+        Math.min(next - now, MAX_TIMEOUT_MS),
+      );
+    }
+
     async function syncPanel() {
       if (settings.debugPanel && !panel) {
         if (panelMounting) return;
         panelMounting = true;
-        const created = await createPanel(ctx, { onBlock: block, onUnblock: unblock });
+        const created = await createPanel(ctx, {
+          onBlock: (author) => block(author),
+          onUnblock: (entry) => void removeBlock(entry),
+        });
         panelMounting = false;
         // 만드는 동안 꺼졌을 수 있다
         if (!settings.debugPanel) {
@@ -99,20 +150,15 @@ export default defineContentScript({
       }
     }
 
-    function block(author: Author) {
-      // 채널 ID는 핸들을 바꿔도 그대로라 있으면 그쪽을 넣는다
-      const item = author.channelId ?? author.handle;
-      if (item) void saveBlocked([...settings.blockedAuthors, item]);
-    }
-
-    function unblock(item: string) {
-      void saveBlocked(settings.blockedAuthors.filter((x) => x !== item));
-    }
-
-    async function saveBlocked(blockedAuthors: string[]) {
-      // 팝업이 같은 때 바꾼 다른 필드를 덮어쓰지 않도록 최신 값에 병합한다. useSettings와 같은 방식.
-      // 화면 갱신은 위의 watch가 한다.
-      await settingsItem.setValue({ ...(await loadSettings()), blockedAuthors });
+    /** durationMs가 없으면 영구 차단. 화면 갱신은 위의 watch가 한다. */
+    function block(author: Author, durationMs?: number) {
+      if (!author.channelId && !author.handle) return;
+      const entry: BlockEntry = {};
+      // 채널 ID는 핸들을 바꿔도 그대로라 있으면 같이 넣는다. 핸들은 목록에 보여 줄 이름이 된다.
+      if (author.channelId) entry.channelId = author.channelId;
+      if (author.handle) entry.handle = author.handle;
+      if (durationMs !== undefined) entry.until = Date.now() + durationMs;
+      void addBlock(entry);
     }
   },
 });
