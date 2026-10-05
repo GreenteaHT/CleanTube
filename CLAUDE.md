@@ -1,7 +1,7 @@
 # CleanTube
 
 유튜브에서 지정한 작성자의 댓글을 숨기는 크롬 확장기능.
-WXT + React + TypeScript, Manifest V3. 한 단계씩 기능을 늘려 가는 중이다.
+WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이다.
 
 ## 명령어
 
@@ -15,15 +15,17 @@ WXT + React + TypeScript, Manifest V3. 한 단계씩 기능을 늘려 가는 중
 자세한 건 [docs/architecture.md](docs/architecture.md). 요약:
 
 - `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 `data-cleantube-blocked` 속성을 붙인다.
+- `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
 - `entrypoints/popup/` React UI. 차단 작성자 목록 편집. `useSettings` 훅으로 설정을 읽고 쓴다.
 - `utils/settings.ts` Settings 타입과 storage 정의. 설정 항목을 추가할 때 여기서 시작.
 - `utils/matcher.ts` 순수 매칭 함수. 브라우저 API 의존 금지.
+- `utils/youtube.ts` 두 콘텐츠 스크립트가 같이 쓰는 셀렉터와 속성·이벤트 이름.
 
 ## 진행 방식
 
-- 한 번에 한 단계. 사용자가 정한 기능만 만든다. "이왕이면" 식으로 덧붙이지 않는다.
+- 단계를 나누지 않고 이어서 개발한다. 사용자가 정한 기능만 만든다. "이왕이면" 식으로 덧붙이지 않는다.
 - 대상은 유튜브만. 다른 사이트를 위한 추상화를 미리 만들지 않는다.
-- 단계를 시작할 때 [docs/backlog.md](docs/backlog.md)에서 범위를 정하고, 끝나면 실제 유튜브에서 확인한다.
+- 할 일과 후보는 [docs/backlog.md](docs/backlog.md)에 둔다. 기능을 만들면 실제 유튜브에서 확인한다.
 - 큰 결정은 [docs/decisions.md](docs/decisions.md)에 이유와 함께 적는다. 코드에 있다고 결정은 아니다. 수치는 실측 전엔 임시값이라고 표시한다.
 
 ## 코드 규칙
@@ -31,6 +33,7 @@ WXT + React + TypeScript, Manifest V3. 한 단계씩 기능을 늘려 가는 중
 - 식별자는 영어, 주석과 문서는 한글.
 - 주석은 "왜"만 적는다. "무엇을"은 이름과 타입으로 설명한다.
 - `utils/matcher.ts`는 DOM, storage, WXT를 import하지 않는다. 단위 테스트가 가능해야 한다.
+- `entrypoints/youtube-main.content.ts`와 `utils/youtube.ts`는 페이지 세계에서 돈다. 확장기능 API(storage, runtime)를 쓰지 않는다.
 - 콘텐츠 스크립트는 DOM을 지우지 않는다. 속성만 토글해서 목록에서 빼면 되돌아오게 한다.
 - 새 설정 항목은 `Settings` 타입, `DEFAULT_SETTINGS`, UI, 콘텐츠 스크립트 순서로 추가한다.
 - 유튜브 셀렉터를 추가하거나 바꾸면 어느 화면의 어떤 요소인지 주석에 적는다.
@@ -47,5 +50,5 @@ WXT + React + TypeScript, Manifest V3. 한 단계씩 기능을 늘려 가는 중
 
 - [docs/architecture.md](docs/architecture.md) 구조와 데이터 흐름.
 - [docs/decisions.md](docs/decisions.md) 설계 결정과 이유. 큰 결정을 하면 여기에 추가한다.
-- [docs/backlog.md](docs/backlog.md) 현재 단계의 할 일과 다음 단계 후보.
+- [docs/backlog.md](docs/backlog.md) 할 일과 후보.
 - `notes/` 개인 메모. git에 올라가지 않는다.

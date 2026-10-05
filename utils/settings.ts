@@ -1,7 +1,7 @@
 import { storage } from '#imports';
 
 export interface Settings {
-  /** 댓글을 숨길 작성자. @핸들 또는 채널명 (대소문자 무시, 앞의 @ 무시, 정확히 일치) */
+  /** 댓글을 숨길 작성자. @핸들(대소문자와 앞의 @ 무시) 또는 UC로 시작하는 채널 ID. 정확히 일치 */
   blockedAuthors: string[];
 }
 

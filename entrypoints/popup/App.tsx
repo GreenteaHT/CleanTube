@@ -14,7 +14,7 @@ export default function App() {
 
       <ListEditor
         title="숨길 댓글 작성자"
-        placeholder="@핸들 또는 채널명 (정확히 일치)"
+        placeholder="@핸들 또는 채널 ID (정확히 일치)"
         items={settings.blockedAuthors}
         onChange={(blockedAuthors) => update({ blockedAuthors })}
       />

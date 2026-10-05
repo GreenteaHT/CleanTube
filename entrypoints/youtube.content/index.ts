@@ -1,6 +1,7 @@
 import { defineContentScript } from '#imports';
 import { DEFAULT_SETTINGS, settingsItem, type Settings } from '@/utils/settings';
-import { findAuthor } from '@/utils/matcher';
+import { findAuthor, type Author } from '@/utils/matcher';
+import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
 import './style.css';
 
 /**
@@ -9,9 +10,6 @@ import './style.css';
  * DOM을 지우지 않고 속성만 토글하므로 목록에서 빼면 되돌아온다.
  */
 const ATTR = 'data-cleantube-blocked';
-
-/** 개별 댓글. 최상위 댓글과 답글 모두 해당. ytd-comment-renderer는 구형 마크업. */
-const COMMENT_SELECTOR = 'ytd-comment-view-model, ytd-comment-renderer';
 
 export default defineContentScript({
   matches: ['*://*.youtube.com/*'],
@@ -46,8 +44,12 @@ export default defineContentScript({
     applyAll();
 
     function applyAll() {
+      // 채널 ID는 페이지 세계에서만 읽을 수 있어서 youtube-main 스크립트에 적어 달라고 요청한다.
+      // dispatchEvent는 듣는 쪽이 끝나야 돌아오므로 아래 루프가 돌 때는 속성이 이미 최신이다.
+      document.dispatchEvent(new Event(CHANNEL_ID_REQUEST));
+
       for (const el of document.querySelectorAll<HTMLElement>(COMMENT_SELECTOR)) {
-        const hit = findAuthor(authorIds(el), settings.blockedAuthors);
+        const hit = findAuthor(readAuthor(el), settings.blockedAuthors);
         if (hit) {
           if (el.getAttribute(ATTR) !== hit) el.setAttribute(ATTR, hit);
         } else if (el.hasAttribute(ATTR)) {
@@ -58,24 +60,12 @@ export default defineContentScript({
   },
 });
 
-/**
- * 댓글에서 작성자를 식별할 수 있는 문자열을 모두 모은다.
- * 화면에 보이는 텍스트("@handle" 또는 채널명)와 링크의 핸들 둘 다.
- * 사용자가 어느 쪽을 입력해도 매칭되도록.
- */
-function authorIds(comment: Element): string[] {
-  const ids: string[] = [];
-
-  const author = comment.querySelector<HTMLElement>('#author-text');
-  if (!author) return ids;
-
-  const text = author.textContent?.trim();
-  if (text) ids.push(text);
-
-  // #author-text 자체가 <a>인 경우와 안에 <a>가 있는 경우 둘 다 본다.
-  const link = author.closest('a') ?? author.querySelector('a');
-  const handle = link?.getAttribute('href')?.match(/\/@([^/?#]+)/)?.[1];
-  if (handle) ids.push(`@${handle}`);
-
-  return ids;
+function readAuthor(comment: Element): Author {
+  return {
+    // 영상 페이지 댓글 헤더의 작성자 링크. 글자는 채널명이 아니라 "@handle"이다.
+    // 인증·크리에이터 배지가 붙은 댓글은 이 링크가 hidden이 되고 배지가 대신 보이지만 글자는 남아 있다.
+    // href의 핸들은 한글·일본어면 %로 인코딩돼 있어 쓰지 않는다.
+    handle: comment.querySelector('#author-text')?.textContent?.trim(),
+    channelId: comment.getAttribute(CHANNEL_ID_ATTR) ?? undefined,
+  };
 }
