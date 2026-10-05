@@ -2,15 +2,9 @@ import { defineContentScript } from '#imports';
 import { loadSettings, settingsItem, withDefaults, type Settings } from '@/utils/settings';
 import { findAuthor, type Author } from '@/utils/matcher';
 import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
+import { hideTargetOf, setHidden } from './hide';
 import { createPanel, type Panel, type PanelRow } from './panel';
 import './style.css';
-
-/**
- * 숨길 댓글에 붙이는 속성. 값은 매칭된 차단 목록 항목이라 DevTools에서 왜 숨겨졌는지 바로 보인다.
- * 실제 숨김은 style.css가 이 속성을 보고 처리한다.
- * DOM을 지우지 않고 속성만 토글하므로 목록에서 빼면 되돌아온다.
- */
-const ATTR = 'data-cleantube-blocked';
 
 export default defineContentScript({
   matches: ['*://*.youtube.com/*'],
@@ -35,14 +29,23 @@ export default defineContentScript({
     // 유튜브는 SPA라 페이지를 옮겨도 스크립트가 다시 실행되지 않는다.
     // 댓글은 스크롤해야 뒤늦게 붙기도 한다. 그래서 DOM 변경을 감시해서 그때마다 스캔한다.
     // 패널은 Shadow DOM 안에 그리므로 패널을 다시 그려도 이 감시에 잡히지 않는다.
-    const observer = new MutationObserver(schedule);
+    const observer = new MutationObserver((records) => {
+      // 새로 붙은 댓글은 여기서 바로 처리한다. 이 콜백은 DOM이 바뀐 직후, 화면에 칠하기 전에 돌아서
+      // 이미 차단된 작성자의 댓글이 한 번도 보이지 않는다. 나머지는 묶어서 스캔한다.
+      const added = addedComments(records);
+      if (added.length > 0) {
+        requestChannelIds();
+        for (const el of added) applyOne(el, false);
+      }
+      schedule();
+    });
     observer.observe(document.documentElement, { childList: true, subtree: true });
     ctx.onInvalidated(() => observer.disconnect());
 
-    // 팝업이나 패널에서 설정을 바꾸면 즉시 반영. 패널의 차단 버튼도 storage에 쓰고 이 경로로 돌아온다.
+    // 팝업이나 패널에서 바꾸면 storage를 거쳐 여기로 온다. 사용자가 누른 변경이라 애니메이션을 켠다.
     const unwatch = settingsItem.watch((next) => {
       settings = withDefaults(next);
-      applyAll();
+      applyAll(true);
       void syncPanel();
     });
     ctx.onInvalidated(unwatch);
@@ -50,23 +53,26 @@ export default defineContentScript({
     applyAll();
     void syncPanel();
 
-    function applyAll() {
-      // 채널 ID는 페이지 세계에서만 읽을 수 있어서 youtube-main 스크립트에 적어 달라고 요청한다.
-      // dispatchEvent는 듣는 쪽이 끝나야 돌아오므로 아래 루프가 돌 때는 속성이 이미 최신이다.
-      document.dispatchEvent(new Event(CHANNEL_ID_REQUEST));
-
+    function applyAll(animate = false) {
+      requestChannelIds();
       rows = [];
       for (const el of document.querySelectorAll<HTMLElement>(COMMENT_SELECTOR)) {
-        const author = readAuthor(el);
-        const hit = findAuthor(author, settings.blockedAuthors);
-        rows.push({ author, hit });
-        if (hit) {
-          if (el.getAttribute(ATTR) !== hit) el.setAttribute(ATTR, hit);
-        } else if (el.hasAttribute(ATTR)) {
-          el.removeAttribute(ATTR);
-        }
+        rows.push(applyOne(el, animate));
       }
       panel?.render(rows);
+    }
+
+    function applyOne(el: HTMLElement, animate: boolean): PanelRow {
+      const author = readAuthor(el);
+      const hit = findAuthor(author, settings.blockedAuthors);
+      setHidden(hideTargetOf(el), hit, animate);
+      return { author, hit };
+    }
+
+    // 채널 ID는 페이지 세계에서만 읽을 수 있어서 youtube-main 스크립트에 적어 달라고 요청한다.
+    // dispatchEvent는 듣는 쪽이 끝나야 돌아오므로 돌아온 뒤에는 속성이 최신이다.
+    function requestChannelIds() {
+      document.dispatchEvent(new Event(CHANNEL_ID_REQUEST));
     }
 
     async function syncPanel() {
@@ -106,7 +112,7 @@ export default defineContentScript({
   },
 });
 
-function readAuthor(comment: Element): Author {
+function readAuthor(comment: HTMLElement): Author {
   return {
     // 영상 페이지 댓글 헤더의 작성자 링크. 글자는 채널명이 아니라 "@handle"이다.
     // 인증·크리에이터 배지가 붙은 댓글은 이 링크가 hidden이 되고 배지가 대신 보이지만 글자는 남아 있다.
@@ -114,4 +120,16 @@ function readAuthor(comment: Element): Author {
     handle: comment.querySelector('#author-text')?.textContent?.trim() || undefined,
     channelId: comment.getAttribute(CHANNEL_ID_ATTR) ?? undefined,
   };
+}
+
+function addedComments(records: MutationRecord[]): HTMLElement[] {
+  const out: HTMLElement[] = [];
+  for (const record of records) {
+    for (const node of record.addedNodes) {
+      if (!(node instanceof HTMLElement)) continue;
+      if (node.matches(COMMENT_SELECTOR)) out.push(node);
+      else out.push(...node.querySelectorAll<HTMLElement>(COMMENT_SELECTOR));
+    }
+  }
+  return out;
 }
