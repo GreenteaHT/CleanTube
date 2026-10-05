@@ -7,8 +7,9 @@
 
 - 팝업에서 작성자(@핸들 또는 채널 ID)를 목록에 넣으면 그 사람의 댓글과 답글이 사라진다.
 - 목록에서 빼면 바로 다시 보인다.
-- 핸들은 본인이 바꿀 수 있고 채널 ID(`UC…`)는 바뀌지 않는다. 채널 ID를 넣어 주는 UI는 아직 없다.
-  개발자 도구에서 댓글 요소의 `data-cleantube-channel-id` 값을 복사해 넣는다.
+- 핸들은 본인이 바꿀 수 있고 채널 ID(`UC…`)는 바뀌지 않는다.
+- 팝업에서 "디버그 패널"을 켜면 유튜브 화면 오른쪽에 확장기능이 읽은 댓글 목록(핸들, 채널 ID, 매칭 결과)이
+  뜨고, 줄마다 차단/해제 버튼이 있다. 차단은 채널 ID로 들어간다.
 
 ## 실행
 
@@ -30,6 +31,7 @@ entrypoints/
   youtube.content/   유튜브 페이지 안에서 실행. 댓글을 감시해서 작성자를 확인하고 숨긴다.
     index.ts         MutationObserver + 작성자 읽기 + data-cleantube-blocked 속성 토글
     style.css        data-cleantube-blocked 속성이 있으면 display:none
+    panel.ts/.css    디버그 패널. Shadow DOM 안에 읽은 댓글 목록과 차단/해제 버튼
   youtube-main.content.ts
                      페이지(MAIN) 세계에서 실행. 댓글 요소에 채널 ID를 속성으로 적는다.
   popup/             툴바 아이콘 팝업 (React). 차단 작성자 목록 편집
@@ -60,10 +62,10 @@ WXT가 `entrypoints/` 구조를 읽어서 `manifest.json`을 자동 생성한다
 4. 댓글(`ytd-comment-view-model`)마다 `#author-text`의 @핸들과 위의 채널 ID를 읽어 차단 목록과 비교한다.
 5. 매칭되면 `data-cleantube-blocked="<항목>"` 속성을 붙인다. 실제 숨김은 CSS가 담당한다.
    DOM을 지우지 않으므로 목록에서 빼면 즉시 되돌아온다.
-6. 팝업에서 목록을 바꾸면 `storage.watch()`로 콘텐츠 스크립트가 즉시 반영한다.
+6. 팝업이나 패널에서 목록을 바꾸면 `storage.watch()`로 콘텐츠 스크립트가 즉시 반영한다.
 
-디버깅할 때는 개발자 도구에서 `[data-cleantube-blocked]`를 검색하면 숨겨진 댓글과
-매칭된 항목을 볼 수 있다.
+디버깅할 때는 팝업에서 디버그 패널을 켜면 된다. 개발자 도구에서는 `[data-cleantube-blocked]`를
+검색하면 숨겨진 댓글과 매칭된 항목을 볼 수 있다.
 
 ## 유의사항
 

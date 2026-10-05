@@ -14,7 +14,7 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 
 자세한 건 [docs/architecture.md](docs/architecture.md). 요약:
 
-- `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 `data-cleantube-blocked` 속성을 붙인다.
+- `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 `data-cleantube-blocked` 속성을 붙인다. `panel.ts`는 디버그 패널(Shadow DOM, React 없음).
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
 - `entrypoints/popup/` React UI. 차단 작성자 목록 편집. `useSettings` 훅으로 설정을 읽고 쓴다.
 - `utils/settings.ts` Settings 타입과 storage 정의. 설정 항목을 추가할 때 여기서 시작.
