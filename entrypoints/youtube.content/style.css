@@ -3,7 +3,99 @@
  * 유튜브 페이지 전체에 적용되므로 우리 속성 셀렉터로만 범위를 좁힌다.
  */
 
+/* 표시 방법: 완전히 숨김 */
 [data-cleantube-blocked] {
+  display: none !important;
+}
+
+/*
+ * 표시 방법: 블러, 자리표시자. 가린 요소(댓글 또는 스레드)에 data-cleantube-cover가 붙고,
+ * 그 첫 자식으로 우리 가림막(data-cleantube-overlay)이 들어간다.
+ * "숨긴 항목 보기"를 누르면 data-cleantube-revealed가 붙어 가림이 풀린다.
+ */
+[data-cleantube-cover] {
+  /* 블러일 때 가림막을 이 요소 위에 겹쳐 놓기 위해 */
+  position: relative;
+}
+
+/* 가림막. 유튜브 요소 안에 들어가므로 all:unset으로 끊고 시작한다. 유튜브는 html 글자 크기가 10px이라 px로 적는다. */
+[data-cleantube-overlay] {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0 10px;
+  font:
+    12px/18px Roboto,
+    Arial,
+    sans-serif;
+  color: #606060;
+}
+
+html[dark] [data-cleantube-overlay] {
+  color: #aaa;
+}
+
+[data-cleantube-overlay] button {
+  all: unset;
+  box-sizing: border-box;
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.06);
+  color: #0f0f0f;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+html[dark] [data-cleantube-overlay] button {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f1f1f1;
+}
+
+[data-cleantube-overlay] button:hover {
+  background: rgba(128, 128, 128, 0.35);
+}
+
+/* 블러: 내용을 흐리게 하고 누를 수 없게 한다. 가림막은 전체를 덮고, 마우스를 올리면 pill만 보인다. */
+[data-cleantube-cover='blur']:not([data-cleantube-revealed]) > :not([data-cleantube-overlay]) {
+  filter: blur(8px);
+  pointer-events: none;
+  user-select: none;
+}
+
+[data-cleantube-cover='blur']:not([data-cleantube-revealed]) > [data-cleantube-overlay] {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+[data-cleantube-cover='blur']:not([data-cleantube-revealed]):hover > [data-cleantube-overlay],
+[data-cleantube-cover='blur']:not([data-cleantube-revealed]) > [data-cleantube-overlay]:focus-within {
+  opacity: 1;
+}
+
+[data-cleantube-cover='blur']:not([data-cleantube-revealed]) > [data-cleantube-overlay] > span {
+  display: none;
+}
+
+/* 흐린 글자 위에서도 pill이 읽히게 불투명한 바탕을 준다 */
+[data-cleantube-cover='blur']:not([data-cleantube-revealed]) > [data-cleantube-overlay] button {
+  background: #e5e5e5;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+html[dark] [data-cleantube-cover='blur']:not([data-cleantube-revealed]) > [data-cleantube-overlay] button {
+  background: #3f3f3f;
+}
+
+/* 자리표시자: 내용을 치우고 가림막 한 줄만 남긴다 */
+[data-cleantube-cover='placeholder']:not([data-cleantube-revealed]) > :not([data-cleantube-overlay]) {
   display: none !important;
 }
 

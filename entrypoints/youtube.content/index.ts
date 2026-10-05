@@ -4,7 +4,7 @@ import { formatDuration } from '@/utils/duration';
 import { entryKey, findBlock, type Author, type BlockEntry } from '@/utils/matcher';
 import { loadSettings, settingsItem, withDefaults, type Settings } from '@/utils/settings';
 import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
-import { hideTargetOf, setHidden } from './hide';
+import { applyDisplay } from './display';
 import { createCommentMenu } from './menu';
 import { createPanel, type Panel, type PanelRow } from './panel';
 import './style.css';
@@ -78,6 +78,8 @@ export default defineContentScript({
     ctx.onInvalidated(
       settingsItem.watch((next) => {
         settings = withDefaults(next);
+        // 표시 방법이 바뀌었을 수 있다
+        applyAll(true);
         void syncPanel();
       }),
     );
@@ -99,7 +101,11 @@ export default defineContentScript({
     function applyOne(el: HTMLElement, now: number, animate: boolean): PanelRow {
       const author = readAuthor(el);
       const hit = findBlock(author, blocked, now);
-      setHidden(hideTargetOf(el), hit && entryKey(hit), animate);
+      const display = hit && {
+        key: entryKey(hit),
+        mode: hit.until === undefined ? settings.display.permanent : settings.display.temporary,
+      };
+      applyDisplay(el, display, { coverReplies: settings.coverReplies, animate });
       menu.attach(el);
       return { author, hit };
     }

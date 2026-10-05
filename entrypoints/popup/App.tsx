@@ -3,16 +3,26 @@ import BlockList from '@/components/BlockList';
 import { useBlocked } from '@/hooks/useBlocked';
 import { useSettings } from '@/hooks/useSettings';
 import { DAY_MS, HOUR_MS, formatDuration } from '@/utils/duration';
+import type { DisplayMode } from '@/utils/settings';
 import './App.css';
+
+const MODE_LABELS: Record<DisplayMode, string> = {
+  hide: '완전히 숨기기',
+  blur: '흐리게',
+  placeholder: '"차단된 댓글"로 바꾸기',
+};
 
 const DURATION_PRESETS = [DAY_MS, 7 * DAY_MS, 30 * DAY_MS];
 
-/** 툴바 아이콘을 눌렀을 때 뜨는 팝업. 차단 목록, 임시 차단 설정, 디버그 패널 토글. */
+/** 툴바 아이콘을 눌렀을 때 뜨는 팝업. 차단 목록, 영구/임시 차단 설정, 디버그 패널 토글. */
 export default function App() {
   const { settings, update } = useSettings();
   const { blocked, add, remove } = useBlocked();
 
   if (!settings || !blocked) return <div className="popup muted">불러오는 중…</div>;
+
+  const setMode = (kind: 'permanent' | 'temporary', mode: DisplayMode) =>
+    update({ display: { ...settings.display, [kind]: mode } });
 
   return (
     <div className="popup">
@@ -24,13 +34,32 @@ export default function App() {
       </p>
 
       <section className="kind">
+        <h2>영구 차단</h2>
+        <ModeField value={settings.display.permanent} onChange={(mode) => setMode('permanent', mode)} />
+      </section>
+
+      <section className="kind">
         <h2>임시 차단</h2>
         <DurationField
           value={settings.temporaryDurationMs}
           onChange={(temporaryDurationMs) => update({ temporaryDurationMs })}
         />
+        <ModeField value={settings.display.temporary} onChange={(mode) => setMode('temporary', mode)} />
         <p className="muted">기간을 바꿔도 이미 걸어 둔 임시 차단은 그대로예요.</p>
       </section>
+
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={settings.coverReplies}
+          onChange={(e) => update({ coverReplies: e.target.checked })}
+        />
+        답글도 함께 가리기
+      </label>
+      <p className="muted">
+        흐리게 하거나 "차단된 댓글"로 바꿀 때, 그 댓글에 달린 답글까지 가려요. 완전히 숨기기는 항상
+        답글까지 숨겨요.
+      </p>
 
       <label className="toggle">
         <input
@@ -42,6 +71,21 @@ export default function App() {
       </label>
       <p className="muted">유튜브 화면 오른쪽에 확장기능이 읽은 댓글 목록을 띄워요.</p>
     </div>
+  );
+}
+
+function ModeField(props: { value: DisplayMode; onChange: (mode: DisplayMode) => void }) {
+  return (
+    <label className="field">
+      표시 방법
+      <select value={props.value} onChange={(e) => props.onChange(e.target.value as DisplayMode)}>
+        {Object.entries(MODE_LABELS).map(([mode, label]) => (
+          <option key={mode} value={mode}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

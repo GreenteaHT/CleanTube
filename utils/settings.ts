@@ -1,17 +1,34 @@
 import { storage } from '#imports';
 import { DAY_MS } from './duration';
 
+/**
+ * 차단된 댓글을 보여 주는 방법.
+ * - hide: 완전히 숨긴다.
+ * - blur: 흐리게 하고, 마우스를 올리면 "숨긴 항목 보기"가 나온다.
+ * - placeholder: "차단된 댓글" 한 줄로 바꾸고 "숨긴 항목 보기"를 둔다.
+ */
+export type DisplayMode = 'hide' | 'blur' | 'placeholder';
+
 /** 차단 목록은 여기 없다. 커질 수 있어서 utils/blocklist.ts가 storage.local에 따로 둔다. */
 export interface Settings {
   /** 유튜브 화면 오른쪽에 읽은 댓글 목록과 차단 버튼을 띄운다. 채널 ID를 손으로 복사하지 않아도 되게. */
   debugPanel: boolean;
   /** 댓글 메뉴의 "임시 차단"을 눌렀을 때 차단하는 기간(ms). 이미 걸어 둔 임시 차단의 기간은 바뀌지 않는다. */
   temporaryDurationMs: number;
+  /** 영구 차단과 임시 차단을 각각 어떻게 보여 줄지. */
+  display: { permanent: DisplayMode; temporary: DisplayMode };
+  /**
+   * blur나 placeholder일 때, 최상위 댓글이 차단이면 그 답글까지 가릴지.
+   * hide는 이 값과 상관없이 스레드째 숨긴다. 댓글만 숨기면 "답글 N개"가 부모 없이 남기 때문이다.
+   */
+  coverReplies: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   debugPanel: false,
   temporaryDurationMs: 7 * DAY_MS,
+  display: { permanent: 'hide', temporary: 'blur' },
+  coverReplies: false,
 };
 
 /**
@@ -31,5 +48,10 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 export function withDefaults(value: Partial<Settings> | null | undefined): Settings {
-  return { ...DEFAULT_SETTINGS, ...value };
+  return {
+    ...DEFAULT_SETTINGS,
+    ...value,
+    // 안쪽 객체도 필드가 나중에 늘 수 있어서 한 겹 더 덮어 쓴다
+    display: { ...DEFAULT_SETTINGS.display, ...value?.display },
+  };
 }
