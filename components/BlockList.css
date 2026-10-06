@@ -14,20 +14,49 @@
   color: var(--muted);
 }
 
+/* 영구 차단, 임시 차단 묶음 */
+.block-list .group {
+  margin-top: 16px;
+}
+
+.block-list .group-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  /* 정렬 select가 없는 묶음도 제목 줄 높이가 같게 */
+  min-height: 30px;
+}
+
+.block-list h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.block-list select {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+
 .block-list ul {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 280px;
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
-  overflow-y: auto;
 }
 
 .block-list li {
-  /* 목록이 넘쳐 스크롤될 때 줄이 눌려 줄어들지 않게 */
-  flex: none;
   padding: 6px 10px;
   border-radius: 6px;
   background: var(--surface);

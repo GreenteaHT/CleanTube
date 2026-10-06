@@ -60,7 +60,7 @@ export default defineContentScript({
     observer.observe(document.documentElement, { childList: true, subtree: true });
     ctx.onInvalidated(() => observer.disconnect());
 
-    // 팝업, 패널, 메뉴 어디서 바꾸든 storage를 거쳐 여기로 온다. 사용자가 누른 변경이라 애니메이션을 켠다.
+    // 차단 목록 페이지, 패널, 메뉴 어디서 바꾸든 storage를 거쳐 여기로 온다. 사용자가 누른 변경이라 애니메이션을 켠다.
     ctx.onInvalidated(
       watchBlocked((next) => {
         blocked = next;

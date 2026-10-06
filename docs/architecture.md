@@ -7,12 +7,12 @@ WXT의 auto-import는 꺼 두었다(`imports: false`). 켜 두면 `utils/`, `hoo
 ## 큰 그림
 
 ```
-popup (React)          댓글 메뉴, 디버그 패널 (유튜브 화면 안, Shadow DOM)
-    |                      |  영구 차단 / 임시 차단 / 해제, 차단/해제 버튼
-    v                      v
+popup (React)    options (React)     댓글 메뉴, 디버그 패널 (유튜브 화면 안, Shadow DOM)
+    |  설정          |  차단 목록         |  영구 차단 / 임시 차단 / 해제, 차단/해제 버튼
+    v                v                   v
 chrome.storage.local "local:blocked"   차단 목록 (BlockEntry[])
 chrome.storage.sync  "sync:settings"   설정 (임시 차단 기간, 표시 방법, 디버그 패널)
-    |  watchBlocked(), watchSettings()   팝업과 콘텐츠 스크립트가 각자 구독
+    |  watchBlocked(), watchSettings()   팝업, 차단 목록 페이지, 콘텐츠 스크립트가 각자 구독
     v
 entrypoints/youtube.content/index.ts              (격리 세계)
     |  MutationObserver  ->  새로 붙은 댓글은 즉시, 전체는 150ms로 묶어 applyAll()
@@ -31,7 +31,7 @@ entrypoints/youtube.content/index.ts              (격리 세계)
   "차단된 댓글"로     data-cleantube-cover="placeholder"   + "숨긴 항목 보기" 가림막
 ```
 
-팝업, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목 둘을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 없다.
+팝업, 차단 목록 페이지, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목 둘을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 없다.
 
 storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖으로 내보내지 않는다. 읽기, 쓰기, 구독은 그 두 파일이 내보내는 함수로만 한다. 병합 규칙과 쓰기 규칙이 한 곳에 있게 하려는 것이다.
 
@@ -46,7 +46,8 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 | `youtube.content/source.ts` | (index.ts에 번들됨) | 차단할 때 그 댓글의 주소, 영상 제목, 내용을 읽는다 |
 | `youtube.content/panel.ts` + `panel.css` | (index.ts에 번들됨) | 디버그 패널. `panel.css`는 `?inline`으로 문자열로 가져와 Shadow DOM 안에만 넣는다 |
 | `youtube-main.content.ts` | content_scripts (`world: MAIN`, `document_start`) | 요청을 받으면 댓글 요소에 채널 ID를 속성으로 적는다 |
-| `popup/` | action.default_popup | 차단 목록, 영구/임시 차단 설정, 디버그 패널 토글 |
+| `popup/` | action.default_popup | 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정, 디버그 패널 토글 |
+| `options/` | options_ui (`open_in_tab`) | 차단 목록 페이지. 목록 보기와 편집. 탭 하나로 열린다 |
 
 ## 저장
 
@@ -66,9 +67,9 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 
 - `loadBlocked()` 전체를 읽는다. `watchBlocked(callback)` 변경을 구독한다. 돌려주는 함수로 구독을 푼다.
 - 쓰기는 기준이 둘이다.
-  - 항목 기준. `addBlock(entry)`는 키가 같은 기존 항목을 새 항목으로 바꾸고, `removeBlock(entry)`는 키가 같은 항목을 뺀다. 팝업의 목록과 패널의 해제처럼 항목 하나를 골라서 다룰 때 쓴다.
+  - 항목 기준. `addBlock(entry)`는 키가 같은 기존 항목을 새 항목으로 바꾸고, `removeBlock(entry)`는 키가 같은 항목을 뺀다. 차단 목록 페이지와 패널의 해제처럼 항목 하나를 골라서 다룰 때 쓴다.
   - 작성자 기준. `blockAuthor(author, entry)`는 그 작성자에게 걸린 항목을 모두 빼고 `entry` 하나를 넣는다. `unblockAuthor(author)`는 모두 빼기만 한다. 유튜브 화면에서 댓글을 보고 차단하거나 풀 때 쓴다.
-  - 작성자 기준이 따로 있는 이유. 같은 사람이 키가 다른 항목 여럿에 걸려 있을 수 있다. 팝업에서 손으로 넣은 핸들 항목은 키가 핸들이고, 메뉴로 넣은 항목은 키가 채널 ID다. 키가 같은 것만 바꾸면 영구를 임시로 바꿔도 남은 영구 항목이 이긴다. 빼기와 넣기는 한 번의 쓰기라서 그 사이에 풀린 상태가 화면에 나오지 않는다.
+  - 작성자 기준이 따로 있는 이유. 같은 사람이 키가 다른 항목 여럿에 걸려 있을 수 있다. 차단 목록 페이지에서 손으로 넣은 핸들 항목은 키가 핸들이고, 메뉴로 넣은 항목은 키가 채널 ID다. 키가 같은 것만 바꾸면 영구를 임시로 바꿔도 남은 영구 항목이 이긴다. 빼기와 넣기는 한 번의 쓰기라서 그 사이에 풀린 상태가 화면에 나오지 않는다.
 - 넷 다 쓰기 전에 최신 값을 다시 읽고, 만료된 임시 차단을 같이 치운다.
 - 만료는 지우는 게 아니라 무시하는 것이다. 매칭이 만료된 항목을 건너뛰므로 치우는 건 다음에 쓸 때로 미뤄도 된다.
 
@@ -101,7 +102,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
    - 새로 붙은 댓글은 그 자리에서 바로 처리한다. 이 콜백은 DOM이 바뀐 직후, 크롬이 화면에 칠하기 전에 돈다. 그래서 이미 차단된 작성자의 댓글은 한 번도 원래 모습으로 보이지 않는다.
    - 전체 스캔은 150ms에 한 번으로 묶는다. 새로 붙은 댓글은 위에서 바로 처리하므로 이 스캔은 안전망이다. 실측에서 간격은 비용을 바꾸지 않았다 ([decisions.md](decisions.md) "스캔 스케줄링 실측").
    - 우리 요소(메뉴 버튼, 가림막, 메뉴와 패널의 Shadow DOM 호스트)를 넣거나 뺀 것뿐이거나 그 안에서 일어난 변경이면 스캔을 걸지 않는다. 스캔이 버튼과 가림막을 넣는 것도 DOM 변경이라, 거르지 않으면 스캔이 스캔을 부른다.
-2. `watchBlocked()`. 팝업, 패널, 메뉴 어디서 차단 목록을 바꾸든 즉시 다시 스캔한다. 사용자가 누른 변경이라 애니메이션을 켠다.
+2. `watchBlocked()`. 차단 목록 페이지, 패널, 메뉴 어디서 차단 목록을 바꾸든 즉시 다시 스캔한다. 사용자가 누른 변경이라 애니메이션을 켠다.
 3. `watchSettings()`. 표시 방법이 바뀌었을 수 있으니 다시 스캔한다.
 4. 만료 타이머. 가장 먼저 풀리는 임시 차단 시각에 맞춰 다시 스캔한다. 스캔은 DOM이 바뀔 때만 돌아서, 타이머가 없으면 기간이 끝나도 화면이 바뀔 때까지 가려져 있다. `setTimeout`의 최대 지연(약 24.8일)을 넘는 기간은 그만큼씩 끊어서 다시 건다.
 
@@ -143,7 +144,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 - 차단은 `blockAuthor()`, 해제는 `unblockAuthor()`로 쓴다. 그 작성자에게 걸린 항목을 모두 빼므로 누른 뒤의 상태가 항목 글자와 같다.
 - 글자와 동작은 메뉴를 열 때 한 쌍으로 정해진다. 열려 있는 사이에 목록이나 설정이 바뀌어도 적힌 대로 동작한다.
 - 임시 차단의 기간은 메뉴에서 고르지 않고 팝업 설정(`temporaryDurationMs`)에서 정한다. 얼마 동안인지 누르기 전에 알 수 있게 항목 글자에 적는다.
-- 차단된 댓글의 메뉴는 그 댓글이 보여야 열 수 있다. 완전히 숨긴 댓글은 열 수 없어서 패널이나 팝업에서 푼다. 흐리게나 "차단된 댓글"로 바꾼 댓글은 "숨긴 항목 보기"를 누른 뒤에 연다.
+- 차단된 댓글의 메뉴는 그 댓글이 보여야 열 수 있다. 완전히 숨긴 댓글은 열 수 없어서 패널이나 차단 목록 페이지에서 푼다. 흐리게나 "차단된 댓글"로 바꾼 댓글은 "숨긴 항목 보기"를 누른 뒤에 연다.
 - 유튜브의 ⋮ 메뉴는 건드리지 않는다. 이유는 decisions.md.
 
 ### 차단한 경위: `youtube.content/source.ts`
@@ -156,7 +157,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 | `videoTitle` | `ytd-watch-metadata #title yt-formatted-string` | 못 찾으면 `document.title`에서 " - YouTube"를 뗀 것. 150자에서 자른다 |
 | `text` | 댓글 본문 `#content-text` | 유튜브는 이모지를 `<img alt="😭">`로 그려서 `textContent`만 읽으면 빠진다. 그림의 `alt`를 같이 읽는다. 300자에서 자른다 |
 
-차단한 시각은 `at`에 따로 넣는다. 팝업에서 손으로 넣은 항목은 `at`만 있고 `source`는 없다.
+차단한 시각은 `at`에 따로 넣는다. 차단 목록 페이지에서 손으로 넣은 항목은 `at`만 있고 `source`는 없다.
 
 ### 디버그 패널: `youtube.content/panel.ts`
 
@@ -218,10 +219,18 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 ## UI
 
 - `hooks/useSettings.ts` `loadSettings()`로 초기값을 읽고 `watchSettings()`로 구독한다. `update(patch)`는 `updateSettings()`를 부르고 그 결과로 바로 그린다.
-- `hooks/useBlocked.ts` `loadBlocked()`로 읽고 `watchBlocked()`로 구독한다. 쓰기는 `blocklist.ts`의 `addBlock`/`removeBlock`을 그대로 내보낸다.
-- `entrypoints/popup/App.tsx` 차단 목록, 영구 차단 설정(표시 방법), 임시 차단 설정(기간, 표시 방법), 답글도 함께 가리기, 디버그 패널 토글. 기간은 1일·7일·30일 또는 직접 입력(숫자 + 시간/일)이고 ms 하나로 저장한다.
+- `hooks/useBlocked.ts` `loadBlocked()`로 읽고 `watchBlocked()`로 구독한다. 쓰기는 `blocklist.ts`의 `addBlock`/`removeBlock`을 그대로 내보낸다. 팝업은 읽기만 하고 차단 목록 페이지가 읽고 쓴다.
+- `entrypoints/popup/App.tsx` 차단한 수와 "차단 목록 관리" 버튼, 영구 차단 설정(표시 방법), 임시 차단 설정(기간, 표시 방법), 답글도 함께 가리기, 디버그 패널 토글. 기간은 1일·7일·30일 또는 직접 입력(숫자 + 시간/일)이고 ms 하나로 저장한다.
+  - 수는 만료된 임시 차단을 빼고 센다. 차단 목록 페이지가 보여 주는 수와 같다.
+  - 버튼은 `runtime.openOptionsPage()`를 부른다. 차단 목록 페이지가 이미 열려 있으면 새 탭을 만들지 않고 그 탭으로 간다.
+- `entrypoints/options/App.tsx` 차단 목록 페이지. `BlockList` 하나와 댓글 메뉴로도 차단할 수 있다는 안내. 탭 전체를 쓰고 가운데 640px 한 단이다. 목록을 팝업이 아니라 여기 둔 이유는 [decisions.md](decisions.md) "차단 목록은 옵션 페이지에, 설정은 팝업에".
 - `utils/duration.ts` `HOUR_MS`, `DAY_MS`, `formatDuration(ms)`. 팝업과 댓글 메뉴가 같은 표기("7일", "3시간")를 쓰게 한다.
-- `components/BlockList.tsx` 차단 목록 보기와 편집. 이름 자리에 핸들(없으면 채널 ID), 아래에 영구인지 언제까지인지. 손으로 넣는 항목은 영구 차단이다. 만료된 항목은 보여 주지 않는다. 스타일은 옆의 `BlockList.css`.
-  - 항목마다 펼치기 버튼이 있다. 펼치면 차단한 때, 영상 제목, 댓글 내용, "이 댓글로 이동" 링크가 나온다. 한 번에 하나만 펼친다. `at`도 `source`도 없는 예전 항목에는 버튼이 없다.
+- `components/BlockList.tsx` 차단 목록 보기와 편집. 차단 목록 페이지가 쓴다. 손으로 넣는 항목은 영구 차단이다. 만료된 항목은 보여 주지 않는다. 스타일은 옆의 `BlockList.css`.
+  - 맨 위에 전체 수와 손으로 넣는 입력칸, 그 아래에 "영구 차단"과 "임시 차단" 두 묶음(`Group`). 묶음마다 제목, 수, 정렬 select, 목록이 있다. 비어 있는 묶음도 제목은 남고 "아직 없어요."가 나온다.
+  - 줄마다 이름 자리에 핸들(없으면 채널 ID). 그 아래 한 줄에는 임시면 언제까지인지, 핸들과 채널 ID가 둘 다 있으면 채널 ID. 영구인지 임시인지는 묶음 제목이 말하므로 줄에는 적지 않는다. 적을 게 없으면 이 줄이 없다.
+  - 정렬은 묶음마다 따로 고른다. 최근에 차단한 순(기본), 오래된 순, 이름순이 있고 임시 차단에는 곧 풀리는 순이 더 있다. 항목이 둘 이상일 때만 select가 보인다. 고른 값은 컴포넌트 상태라 페이지를 다시 열면 기본으로 돌아간다. 저장된 순서는 바꾸지 않는다.
+    - 차단한 때(`at`)가 없는 예전 항목은 가장 오래된 것으로 친다. 때가 같거나 없는 항목끼리는 저장된 순서(넣은 순서)를 따른다.
+    - 이름순은 대소문자를 가리지 않는다. 핸들이 적은 대로 저장돼 있어서다.
+  - 항목마다 펼치기 버튼이 있다. 펼치면 차단한 때, 영상 제목, 댓글 내용, "이 댓글로 이동" 링크가 나온다. 두 묶음을 통틀어 한 번에 하나만 펼친다. `at`도 `source`도 없는 예전 항목에는 버튼이 없다.
   - 링크는 저장된 주소가 유튜브의 https 주소일 때만 만든다. 저장소에 있는 값을 그대로 믿지 않는다.
-- `assets/base.css` 팝업 기본 스타일. 색, 글꼴, 버튼, 입력창.
+- `assets/base.css` 팝업과 차단 목록 페이지의 기본 스타일. 색, 글꼴, 버튼, 입력창.

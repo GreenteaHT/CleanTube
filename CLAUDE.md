@@ -17,7 +17,8 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 
 - `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 표시 방법에 맞는 속성을 붙인다. `display.ts`는 표시 방법 적용(무엇을 가릴지, 애니메이션, 가림막), `source.ts`는 차단한 댓글의 주소·제목·내용 읽기, `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
-- `entrypoints/popup/` React UI. 차단 목록, 표시 방법, 디버그 패널 토글. `useSettings`와 `useBlocked` 훅으로 읽고 쓴다.
+- `entrypoints/popup/` React UI. 차단한 수와 차단 목록 페이지를 여는 버튼, 표시 방법, 디버그 패널 토글. `useSettings`와 `useBlocked` 훅으로 읽고 쓴다.
+- `entrypoints/options/` React UI. 차단 목록 페이지. 탭 하나로 열린다. 목록 보기와 편집은 여기에만 있다. `useBlocked` 훅으로 읽고 쓴다.
 - `utils/blocklist.ts` 차단 목록. `storage.local`. 읽기 `loadBlocked`, 구독 `watchBlocked`, 쓰기는 `addBlock`/`removeBlock`(항목 하나)과 `blockAuthor`/`unblockAuthor`(그 작성자에게 걸린 것 전부)로만 한다.
 - `utils/settings.ts` Settings 타입과 `storage.sync` 정의. 설정 항목을 추가할 때 여기서 시작. 읽기 `loadSettings`, 구독 `watchSettings`, 쓰기는 `updateSettings`로만 한다.
 - `utils/matcher.ts` 순수 매칭 함수. 브라우저 API 의존 금지. 테스트는 `tests/matcher.test.ts`.

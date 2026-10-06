@@ -3,7 +3,7 @@ import { addBlock, loadBlocked, removeBlock, watchBlocked } from '@/utils/blockl
 import type { BlockEntry } from '@/utils/matcher';
 
 /**
- * 팝업에서 차단 목록을 읽고 쓰는 훅.
+ * 팝업과 차단 목록 페이지에서 차단 목록을 읽고 쓰는 훅.
  * storage를 직접 구독하므로 유튜브 탭의 메뉴나 패널에서 바꿔도 같이 갱신된다.
  */
 export function useBlocked() {

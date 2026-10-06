@@ -26,6 +26,25 @@
   margin-top: -8px;
 }
 
+/* 차단한 수와 차단 목록 페이지를 여는 버튼 */
+.popup .blocked {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.popup .blocked h2 {
+  font-size: 14px;
+}
+
+.popup .blocked .count {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
 /* 영구 차단, 임시 차단 설정 묶음 */
 .popup .kind {
   display: flex;

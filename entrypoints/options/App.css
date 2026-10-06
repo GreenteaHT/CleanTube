@@ -1,0 +1,17 @@
+/* 탭 전체를 쓰지만 줄이 너무 길어지지 않게 가운데 한 단으로 */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.page h1 {
+  font-size: 18px;
+}
+
+.page p {
+  margin: 0;
+}

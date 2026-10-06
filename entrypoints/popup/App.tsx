@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import BlockList from '@/components/BlockList';
+import { browser } from '#imports';
 import { useBlocked } from '@/hooks/useBlocked';
 import { useSettings } from '@/hooks/useSettings';
 import { DAY_MS, HOUR_MS, formatDuration } from '@/utils/duration';
+import { isExpired } from '@/utils/matcher';
 import type { DisplayMode } from '@/utils/settings';
 import './App.css';
 
@@ -14,24 +15,36 @@ const MODE_LABELS: Record<DisplayMode, string> = {
 
 const DURATION_PRESETS = [DAY_MS, 7 * DAY_MS, 30 * DAY_MS];
 
-/** 툴바 아이콘을 눌렀을 때 뜨는 팝업. 차단 목록, 영구/임시 차단 설정, 디버그 패널 토글. */
+/**
+ * 툴바 아이콘을 눌렀을 때 뜨는 팝업. 차단한 수, 영구/임시 차단 설정, 디버그 패널 토글.
+ * 차단 목록은 여기 없고 차단 목록 페이지(entrypoints/options)에 있다. 팝업에는 그 페이지를 여는 버튼만 둔다.
+ */
 export default function App() {
   const { settings, update } = useSettings();
-  const { blocked, add, remove } = useBlocked();
+  const { blocked } = useBlocked();
 
   if (!settings || !blocked) return <div className="popup muted">불러오는 중…</div>;
 
   const setMode = (kind: 'permanent' | 'temporary', mode: DisplayMode) =>
     update({ display: { [kind]: mode } });
 
+  // 만료된 임시 차단은 다음에 목록을 쓸 때 지워진다. 그 전에도 세지 않아야 차단 목록 페이지의 수와 같다.
+  const now = Date.now();
+  const blockedCount = blocked.filter((e) => !isExpired(e, now)).length;
+
   return (
     <div className="popup">
       <h1>CleanTube</h1>
 
-      <BlockList entries={blocked} onAdd={add} onRemove={remove} />
-      <p className="muted">
-        유튜브 댓글에 마우스를 올리면 나오는 버튼으로도 차단할 수 있어요. 임시 차단은 거기서만 돼요.
-      </p>
+      <section className="blocked">
+        <h2>
+          차단한 작성자 <span className="count">{blockedCount}</span>
+        </h2>
+        {/* 이미 열려 있으면 새 탭을 만들지 않고 그 탭으로 간다 */}
+        <button type="button" onClick={() => browser.runtime.openOptionsPage()}>
+          차단 목록 관리
+        </button>
+      </section>
 
       <section className="kind">
         <h2>영구 차단</h2>

@@ -19,7 +19,7 @@ export function watchBlocked(callback: (entries: BlockEntry[]) => void): () => v
   return blockedItem.watch((next) => callback(next ?? []));
 }
 
-/** 키가 같은 기존 항목은 새 항목으로 바꾼다. 목록에 같은 키가 둘 있으면 안 된다. 팝업에서 손으로 넣을 때 쓴다. */
+/** 키가 같은 기존 항목은 새 항목으로 바꾼다. 목록에 같은 키가 둘 있으면 안 된다. 차단 목록 페이지에서 손으로 넣을 때 쓴다. */
 export async function addBlock(entry: BlockEntry): Promise<void> {
   const key = entryKey(entry);
   await update((entries) => [...entries.filter((e) => entryKey(e) !== key), entry]);

@@ -21,7 +21,7 @@ export function readSource(comment: HTMLElement): BlockSource | undefined {
   const href = comment.querySelector(PERMALINK_SELECTOR)?.getAttribute('href');
   if (!href) return undefined;
   const url = new URL(href, location.href);
-  // 팝업에서 링크로 열 주소라 유튜브 주소일 때만 남긴다
+  // 차단 목록 페이지에서 링크로 열 주소라 유튜브 주소일 때만 남긴다
   if (url.origin !== location.origin) return undefined;
 
   const source: BlockSource = { url: url.href };
