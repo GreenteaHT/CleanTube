@@ -11,6 +11,9 @@ export interface PanelRow {
   comment: HTMLElement;
 }
 
+/** 패널을 담는 Shadow DOM 호스트의 태그 이름. body에 붙는다. index.ts가 우리 요소를 가려낼 때 쓴다. */
+export const PANEL_HOST = 'cleantube-panel';
+
 interface Handlers {
   onBlock(author: Author, comment: HTMLElement): void;
   onUnblock(entry: BlockEntry): void;
@@ -34,7 +37,7 @@ export async function createPanel(ctx: ContentScriptContext, handlers: Handlers)
   let root: HTMLElement | undefined;
 
   const ui = await createShadowRootUi(ctx, {
-    name: 'cleantube-panel',
+    name: PANEL_HOST,
     position: 'inline',
     // style.css(댓글 숨김)는 페이지에 적용돼야 해서 cssInjectionMode를 'ui'로 바꿀 수 없다.
     // 그래서 패널 CSS만 문자열로 가져와 Shadow DOM에 넣는다.

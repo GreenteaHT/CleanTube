@@ -14,7 +14,7 @@ const COVER_ATTR = 'data-cleantube-cover';
 const REVEALED_ATTR = 'data-cleantube-revealed';
 
 /** 가린 요소 안에 우리가 넣는 요소. "차단된 댓글" 글자와 pill이 들어 있다. */
-const OVERLAY_ATTR = 'data-cleantube-overlay';
+export const OVERLAY_ATTR = 'data-cleantube-overlay';
 
 /** 영상 페이지 댓글 영역에서 최상위 댓글 하나와 그 답글 묶음("답글 N개" 버튼, 펼친 답글)을 감싸는 요소. */
 const THREAD_SELECTOR = 'ytd-comment-thread-renderer';

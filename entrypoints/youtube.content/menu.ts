@@ -19,7 +19,10 @@ export interface CommentMenu {
 const SLOT_SELECTOR = '#body > #action-menu';
 
 /** 버튼 모양은 style.css(페이지에 적용)에 있다. 댓글에 마우스를 올렸을 때만 보이게 하려면 페이지 CSS여야 해서. */
-const TRIGGER_ATTR = 'data-cleantube-trigger';
+export const TRIGGER_ATTR = 'data-cleantube-trigger';
+
+/** 드롭다운을 담는 Shadow DOM 호스트의 태그 이름. body에 붙는다. index.ts가 우리 요소를 가려낼 때 쓴다. */
+export const MENU_HOST = 'cleantube-menu';
 
 // 세로 점 셋은 유튜브 ⋮와 헷갈려서 다른 모양을 쓴다
 const ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 6.5l11 11" stroke="currentColor" stroke-width="2"/></svg>`;
@@ -38,7 +41,7 @@ export async function createCommentMenu(
   let openTrigger: HTMLButtonElement | undefined;
 
   const ui = await createShadowRootUi(ctx, {
-    name: 'cleantube-menu',
+    name: MENU_HOST,
     position: 'inline',
     css,
     onMount(container) {

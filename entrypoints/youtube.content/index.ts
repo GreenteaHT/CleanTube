@@ -4,9 +4,9 @@ import { formatDuration } from '@/utils/duration';
 import { entryKey, findBlock, type Author, type BlockEntry } from '@/utils/matcher';
 import { loadSettings, watchSettings, type Settings } from '@/utils/settings';
 import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
-import { applyDisplay } from './display';
-import { createCommentMenu } from './menu';
-import { createPanel, type Panel, type PanelRow } from './panel';
+import { OVERLAY_ATTR, applyDisplay } from './display';
+import { MENU_HOST, TRIGGER_ATTR, createCommentMenu } from './menu';
+import { PANEL_HOST, createPanel, type Panel, type PanelRow } from './panel';
 import { readSource } from './source';
 import './style.css';
 
@@ -63,7 +63,9 @@ export default defineContentScript({
         const now = Date.now();
         for (const el of added) applyOne(el, now, false);
       }
-      schedule();
+      // 스캔이 메뉴 버튼과 가림막을 넣으면 그것도 DOM 변경이라 여기로 돌아온다. 그때마다 스캔을 걸면
+      // 스캔이 스캔을 부른다. 우리 요소만 바뀐 변경에는 다시 볼 것이 없다.
+      if (records.some((record) => !isOwnChange(record))) schedule();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
     ctx.onInvalidated(() => observer.disconnect());
@@ -196,4 +198,18 @@ function addedComments(records: MutationRecord[]): HTMLElement[] {
     }
   }
   return out;
+}
+
+/** 우리가 페이지에 넣는 요소. 메뉴 버튼과 가림막은 유튜브 댓글 안에, 메뉴와 패널의 호스트는 body에 들어간다. */
+const OWN_SELECTOR = `[${TRIGGER_ATTR}], [${OVERLAY_ATTR}], ${MENU_HOST}, ${PANEL_HOST}`;
+
+/** 우리 요소를 넣거나 뺀 변경, 또는 우리 요소 안에서 일어난 변경(가림막 pill의 글자 바꾸기 같은 것)인지. */
+function isOwnChange(record: MutationRecord): boolean {
+  if (record.target instanceof Element && record.target.closest(OWN_SELECTOR)) return true;
+  for (const list of [record.addedNodes, record.removedNodes]) {
+    for (const node of list) {
+      if (!(node instanceof Element && node.matches(OWN_SELECTOR))) return false;
+    }
+  }
+  return true;
 }
