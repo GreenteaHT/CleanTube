@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { entryKey, isExpired, parseEntry, type BlockEntry } from '@/utils/matcher';
 import './BlockList.css';
 
@@ -21,6 +21,9 @@ const SORT_LABELS: Record<SortOrder, string> = {
 const PERMANENT_ORDERS: SortOrder[] = ['recent', 'oldest', 'name'];
 const TEMPORARY_ORDERS: SortOrder[] = [...PERMANENT_ORDERS, 'until'];
 
+// 한 쪽에 보여 줄 항목 수. 임시값이다. 목록이 실제로 길어지면 다시 본다.
+const PAGE_SIZE = 20;
+
 /**
  * 차단 목록 보기와 편집. 영구 차단과 임시 차단을 따로 묶어 보여 준다. 손으로 넣는 항목은 영구 차단이다.
  * 임시 차단은 누구를 얼마 동안인지 댓글을 보면서 정하는 것이라 유튜브 화면의 메뉴에서만 만든다.
@@ -33,7 +36,19 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
   const now = Date.now();
   const active = entries.filter((e) => !isExpired(e, now));
   const parsed = parseEntry(draft);
-  const group = { openKey, onToggle: setOpenKey, onRemove };
+  // 목록이 쪽으로 나뉘어 있어서 브라우저의 찾기로는 다른 쪽의 항목을 못 찾는다. 그래서 검색을 따로 둔다.
+  const [search, setSearch] = useState('');
+  const query = search.trim().toLowerCase();
+  const found = query ? active.filter((e) => matchesQuery(e, query)) : active;
+  const group = { query, openKey, onToggle: setOpenKey, onRemove };
+  // 손으로 넣는 입력칸은 접어 두고 제목 옆 + 버튼으로 펼친다
+  const [adding, setAdding] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // 펼쳐지는 중에 포커스가 가면 잘린 영역이 입력칸을 보이려고 스스로 스크롤한다. 그걸 막는다
+    if (adding) inputRef.current?.focus({ preventScroll: true });
+  }, [adding]);
 
   const add = () => {
     if (!parsed) return;
@@ -43,37 +58,66 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
 
   return (
     <section className="block-list">
-      <h2>
-        차단한 작성자 <span className="count">{active.length}</span>
-      </h2>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          add();
-        }}
-      >
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="@핸들 또는 채널 ID (정확히 일치)"
-        />
-        <button type="submit" disabled={!parsed}>
-          추가
+      <div className="list-head">
+        <h2>
+          차단한 작성자 <span className="count">{active.length}</span>
+        </h2>
+        <button
+          type="button"
+          className="add-toggle"
+          aria-expanded={adding}
+          aria-controls="block-list-add"
+          aria-label="작성자 직접 추가"
+          title="작성자 직접 추가"
+          onClick={() => setAdding(!adding)}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 3v10M3 8h10" />
+          </svg>
         </button>
-      </form>
+        <input
+          type="search"
+          className="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="작성자 검색"
+          aria-label="차단한 작성자 검색"
+        />
+      </div>
+
+      {/* 접혀 있을 때는 탭으로도 들어가지 못하게 inert */}
+      <div id="block-list-add" className={adding ? 'add open' : 'add'} inert={!adding}>
+        <div className="add-clip">
+          <form
+            className="row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              add();
+            }}
+          >
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="@핸들 또는 채널 ID (정확히 일치)"
+            />
+            <button type="submit" disabled={!parsed}>
+              추가
+            </button>
+          </form>
+        </div>
+      </div>
 
       <Group
         title="영구 차단"
         orders={PERMANENT_ORDERS}
-        entries={active.filter((e) => e.until === undefined)}
+        entries={found.filter((e) => e.until === undefined)}
         {...group}
       />
       <Group
         title="임시 차단"
         orders={TEMPORARY_ORDERS}
-        entries={active.filter((e) => e.until !== undefined)}
+        entries={found.filter((e) => e.until !== undefined)}
         {...group}
       />
     </section>
@@ -83,19 +127,36 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
 interface GroupProps {
   title: string;
   orders: SortOrder[];
+  /** 이 묶음에서 보여 줄 항목. 검색 중이면 걸린 것만 온다. */
   entries: BlockEntry[];
+  /** 검색어. 소문자로 바꾸고 앞뒤 공백을 뗀 것. 검색 중이 아니면 빈 문자열. */
+  query: string;
   openKey: string | null;
   onToggle: (key: string | null) => void;
   onRemove: (entry: BlockEntry) => void;
 }
 
-/** 영구 차단이나 임시 차단 한 묶음. 정렬은 묶음마다 따로 고르고 저장하지 않는다. */
-function Group({ title, orders, entries, openKey, onToggle, onRemove }: GroupProps) {
+/** 영구 차단이나 임시 차단 한 묶음. 정렬과 쪽은 묶음마다 따로이고 저장하지 않는다. */
+function Group({ title, orders, entries, query, openKey, onToggle, onRemove }: GroupProps) {
   const [order, setOrder] = useState<SortOrder>('recent');
+  // 보던 쪽은 그때의 검색어와 같이 기억한다. 검색어가 바뀌면 결과가 달라지므로 첫 쪽부터 다시 본다.
+  const [page, setPage] = useState({ query, index: 0 });
+  const headRef = useRef<HTMLDivElement>(null);
+
+  const pageCount = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  // 항목을 빼서 쪽이 줄었으면 마지막 쪽을 보여 준다
+  const current = Math.min(page.query === query ? page.index : 0, pageCount - 1);
+  const visible = sortEntries(entries, order).slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+
+  const turnTo = (next: number) => {
+    setPage({ query, index: next });
+    // 쪽 버튼은 목록 아래에 있다. 넘긴 쪽을 위에서부터 읽게, 제목이 화면 위로 나가 있으면 들인다
+    headRef.current?.scrollIntoView({ block: 'nearest' });
+  };
 
   return (
     <section className="group">
-      <div className="group-head">
+      <div className="group-head" ref={headRef}>
         <h3>
           {title} <span className="count">{entries.length}</span>
         </h3>
@@ -104,7 +165,11 @@ function Group({ title, orders, entries, openKey, onToggle, onRemove }: GroupPro
           <select
             value={order}
             aria-label={`${title} 정렬`}
-            onChange={(e) => setOrder(e.target.value as SortOrder)}
+            onChange={(e) => {
+              setOrder(e.target.value as SortOrder);
+              // 순서가 바뀌면 보던 쪽은 뜻이 없다
+              setPage({ query, index: 0 });
+            }}
           >
             {orders.map((o) => (
               <option key={o} value={o}>
@@ -116,10 +181,10 @@ function Group({ title, orders, entries, openKey, onToggle, onRemove }: GroupPro
       </div>
 
       {entries.length === 0 ? (
-        <p className="empty">아직 없어요.</p>
+        <p className="empty">{query ? '찾는 작성자가 없어요.' : '아직 없어요.'}</p>
       ) : (
         <ul>
-          {sortEntries(entries, order).map((entry) => {
+          {visible.map((entry) => {
             const key = entryKey(entry);
             const name = displayName(entry);
             const detail = describe(entry);
@@ -153,6 +218,24 @@ function Group({ title, orders, entries, openKey, onToggle, onRemove }: GroupPro
           })}
         </ul>
       )}
+
+      {pageCount > 1 && (
+        <nav className="pager" aria-label={`${title} 쪽 넘기기`}>
+          <button type="button" disabled={current === 0} onClick={() => turnTo(current - 1)}>
+            이전
+          </button>
+          <span>
+            {current + 1} / {pageCount}
+          </span>
+          <button
+            type="button"
+            disabled={current === pageCount - 1}
+            onClick={() => turnTo(current + 1)}
+          >
+            다음
+          </button>
+        </nav>
+      )}
     </section>
   );
 }
@@ -174,6 +257,11 @@ function sortEntries(entries: BlockEntry[], order: SortOrder): BlockEntry[] {
     case 'until':
       return sorted.sort((a, b) => (a.until ?? Infinity) - (b.until ?? Infinity));
   }
+}
+
+/** 줄에 보이는 것, 곧 핸들과 채널 ID에서 찾는다. query는 소문자여야 한다. */
+function matchesQuery(entry: BlockEntry, query: string): boolean {
+  return [entry.handle, entry.channelId].some((value) => value?.toLowerCase().includes(query));
 }
 
 function displayName(entry: BlockEntry): string {
