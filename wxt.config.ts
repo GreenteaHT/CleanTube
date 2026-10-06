@@ -10,7 +10,7 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
     name: 'CleanTube',
-    description: '유튜브에서 지정한 작성자의 댓글을 숨깁니다.',
+    description: '유튜브에서 지정한 작성자의 댓글을 가립니다.',
     permissions: ['storage'],
   },
 });
