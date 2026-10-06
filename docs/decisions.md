@@ -127,6 +127,12 @@
 - 예전 목록: `sync:settings`의 `blockedAuthors` 문자열 배열은 처음 읽을 때 한 번 옮기고 지운다.
 - 재검토 조건: 여러 기기에서 같은 목록을 쓰고 싶어지면 내보내기/가져오기, 또는 `sync`로 쪼개 넣는 방식을 검토한다.
 
+## 2026-10 storage 항목은 모듈 안에 둔다
+
+- 결정: `defineItem`으로 만든 storage 항목을 `utils/blocklist.ts`와 `utils/settings.ts` 밖으로 내보내지 않는다. 읽기, 쓰기, 구독은 두 파일이 내보내는 함수(`loadBlocked`, `watchBlocked`, `addBlock`, `removeBlock`, `loadSettings`, `updateSettings`, `watchSettings`)로만 한다. WXT의 auto-import도 끈다.
+- 이유: 설계 리뷰에서 나왔다. 전에는 항목이 export돼 있어서 "쓰기는 addBlock/removeBlock으로만"이 관례로만 지켜졌고, 설정의 병합 로직은 utils가 아니라 팝업 훅에 있었다. backlog의 패널 접힘 상태 기억이나 첫 사용 안내처럼 콘텐츠 스크립트가 설정을 쓰게 되면 같은 병합을 두 번 쓰게 될 참이었다. auto-import는 켜 두면 `utils/`의 export 전부가 import 없이 전역으로 보여서 모듈 안에 둔 의미가 없어진다. 이 프로젝트는 처음부터 전부 명시적으로 import하고 있었다.
+- 덤: `updateSettings`는 `display` 같은 안쪽 객체도 병합한다. 전에는 한 겹만 병합해서 호출부가 spread로 피하고 있었다.
+
 ## 2026-10 차단된 댓글의 표시 방법
 
 - 결정: 표시 방법을 셋 둔다. 완전히 숨기기, 흐리게(마우스를 올리면 "숨긴 항목 보기" pill), "차단된 댓글"로 바꾸기("차단된 댓글" 글자와 "숨긴 항목 보기" pill). 영구 차단과 임시 차단에 각각 고른다.

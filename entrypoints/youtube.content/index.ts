@@ -1,8 +1,8 @@
 import { defineContentScript } from '#imports';
-import { addBlock, blockedItem, loadBlocked, removeBlock } from '@/utils/blocklist';
+import { addBlock, loadBlocked, removeBlock, watchBlocked } from '@/utils/blocklist';
 import { formatDuration } from '@/utils/duration';
 import { entryKey, findBlock, type Author, type BlockEntry } from '@/utils/matcher';
-import { loadSettings, settingsItem, withDefaults, type Settings } from '@/utils/settings';
+import { loadSettings, watchSettings, type Settings } from '@/utils/settings';
 import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
 import { applyDisplay } from './display';
 import { createCommentMenu } from './menu';
@@ -70,15 +70,15 @@ export default defineContentScript({
 
     // 팝업, 패널, 메뉴 어디서 바꾸든 storage를 거쳐 여기로 온다. 사용자가 누른 변경이라 애니메이션을 켠다.
     ctx.onInvalidated(
-      blockedItem.watch((next) => {
-        blocked = next ?? [];
+      watchBlocked((next) => {
+        blocked = next;
         applyAll(true);
         scheduleExpiry();
       }),
     );
     ctx.onInvalidated(
-      settingsItem.watch((next) => {
-        settings = withDefaults(next);
+      watchSettings((next) => {
+        settings = next;
         // 표시 방법이 바뀌었을 수 있다
         applyAll(true);
         void syncPanel();

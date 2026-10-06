@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { loadSettings, settingsItem, withDefaults, type Settings } from '@/utils/settings';
+import {
+  loadSettings,
+  updateSettings,
+  watchSettings,
+  type Settings,
+  type SettingsPatch,
+} from '@/utils/settings';
 
 /**
  * 팝업에서 설정을 읽고 쓰는 훅.
@@ -13,20 +19,16 @@ export function useSettings() {
     loadSettings().then((value) => {
       if (alive) setSettings(value);
     });
-    const unwatch = settingsItem.watch((next) => {
-      setSettings(withDefaults(next));
-    });
+    const unwatch = watchSettings(setSettings);
     return () => {
       alive = false;
       unwatch();
     };
   }, []);
 
-  const update = useCallback(async (patch: Partial<Settings>) => {
-    // 다른 창에서 바꾼 값을 덮어쓰지 않도록 최신 값을 다시 읽어 병합한다.
-    const next = { ...(await loadSettings()), ...patch };
-    setSettings(next);
-    await settingsItem.setValue(next);
+  // 구독으로도 같은 값이 오지만, 저장이 끝나는 대로 바로 그린다
+  const update = useCallback(async (patch: SettingsPatch) => {
+    setSettings(await updateSettings(patch));
   }, []);
 
   return { settings, update };

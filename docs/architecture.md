@@ -2,6 +2,8 @@
 
 WXT가 `entrypoints/` 폴더를 읽어 manifest를 만든다. `wxt.config.ts`에는 파일 구조로 알 수 없는 것(이름, 설명, 권한)만 적는다.
 
+WXT의 auto-import는 꺼 두었다(`imports: false`). 켜 두면 `utils/`, `hooks/`, `components/`의 export가 import 없이 전역으로 보여서, storage 항목처럼 모듈 안에 둔 것을 밖에서 쓸 수 있게 된다. WXT API는 `#imports`에서 명시적으로 import한다.
+
 ## 큰 그림
 
 ```
@@ -10,7 +12,7 @@ popup (React)          댓글 메뉴, 디버그 패널 (유튜브 화면 안, Sh
     v                      v
 chrome.storage.local "local:blocked"   차단 목록 (BlockEntry[])
 chrome.storage.sync  "sync:settings"   설정 (임시 차단 기간, 표시 방법, 디버그 패널)
-    |  watch()   팝업과 콘텐츠 스크립트가 각자 구독
+    |  watchBlocked(), watchSettings()   팝업과 콘텐츠 스크립트가 각자 구독
     v
 entrypoints/youtube.content/index.ts              (격리 세계)
     |  MutationObserver  ->  새로 붙은 댓글은 즉시, 전체는 150ms로 묶어 applyAll()
@@ -29,7 +31,9 @@ entrypoints/youtube.content/index.ts              (격리 세계)
   "차단된 댓글"로     data-cleantube-cover="placeholder"   + "숨긴 항목 보기" 가림막
 ```
 
-팝업, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목 둘을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 `watch()`로 받아 화면을 갱신한다. 백그라운드 스크립트는 없다.
+팝업, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목 둘을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 없다.
+
+storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖으로 내보내지 않는다. 읽기, 쓰기, 구독은 그 두 파일이 내보내는 함수로만 한다. 병합 규칙과 쓰기 규칙이 한 곳에 있게 하려는 것이다.
 
 ## 엔트리포인트
 
@@ -60,6 +64,7 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 | `at` | number? | 차단한 시각(epoch ms). 이 필드가 생기기 전에 만든 항목에는 없다 |
 | `source` | `{ url, videoTitle?, text? }`? | 어느 댓글을 보고 차단했는지. 댓글 메뉴나 패널에서 차단했을 때만 있다. 매칭에는 쓰지 않는다 |
 
+- `loadBlocked()` 전체를 읽는다. `watchBlocked(callback)` 변경을 구독한다. 돌려주는 함수로 구독을 푼다.
 - `addBlock(entry)` 같은 대상의 기존 항목을 새 항목으로 바꾼다. 임시를 영구로 바꾸거나 기간을 다시 정할 때.
 - `removeBlock(entry)` 같은 대상의 항목을 뺀다.
 - 둘 다 쓰기 전에 최신 값을 다시 읽고, 만료된 임시 차단을 같이 치운다.
@@ -78,7 +83,10 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 
 `sync:`는 `chrome.storage.sync`라 같은 크롬 계정의 다른 기기와 동기화된다.
 
-`fallback`은 값이 통째로 없을 때만 쓰인다. 전에 저장된 객체에는 나중에 추가한 필드가 빠져 있으므로, 읽는 쪽은 `loadSettings()`/`withDefaults()`로 `DEFAULT_SETTINGS` 위에 덮어 쓴다. `display`는 안쪽 객체라 한 겹 더 덮어 쓴다.
+- `loadSettings()` 전체를 읽는다. `watchSettings(callback)` 변경을 구독한다.
+- `updateSettings(patch)` 최신 값을 다시 읽어 병합한 뒤 저장하고, 병합한 결과를 돌려준다. 다른 창에서 바꾼 값을 덮어쓰지 않기 위해서다. `display`는 한쪽만 넘겨도 된다(`SettingsPatch`).
+
+`fallback`은 값이 통째로 없을 때만 쓰인다. 전에 저장된 객체에는 나중에 추가한 필드가 빠져 있으므로, 읽고 구독하는 함수가 `DEFAULT_SETTINGS` 위에 덮어 쓴다. `display`는 안쪽 객체라 한 겹 더 덮어 쓴다.
 
 ## 콘텐츠 스크립트
 
@@ -91,8 +99,8 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 1. `MutationObserver`가 `document.documentElement`의 자식 변경 전체를 감시한다. 댓글은 스크롤해야 뒤늦게 붙고, 유튜브는 SPA라 페이지를 옮겨도 스크립트가 다시 실행되지 않기 때문이다. 콜백은 두 가지를 한다.
    - 새로 붙은 댓글은 그 자리에서 바로 처리한다. 이 콜백은 DOM이 바뀐 직후, 크롬이 화면에 칠하기 전에 돈다. 그래서 이미 차단된 작성자의 댓글은 한 번도 원래 모습으로 보이지 않는다.
    - 전체 스캔은 150ms에 한 번으로 묶는다. 이 값은 임시다.
-2. `blockedItem.watch()`. 팝업, 패널, 메뉴 어디서 차단 목록을 바꾸든 즉시 다시 스캔한다. 사용자가 누른 변경이라 애니메이션을 켠다.
-3. `settingsItem.watch()`. 표시 방법이 바뀌었을 수 있으니 다시 스캔한다.
+2. `watchBlocked()`. 팝업, 패널, 메뉴 어디서 차단 목록을 바꾸든 즉시 다시 스캔한다. 사용자가 누른 변경이라 애니메이션을 켠다.
+3. `watchSettings()`. 표시 방법이 바뀌었을 수 있으니 다시 스캔한다.
 4. 만료 타이머. 가장 먼저 풀리는 임시 차단 시각에 맞춰 다시 스캔한다. 스캔은 DOM이 바뀔 때만 돌아서, 타이머가 없으면 기간이 끝나도 화면이 바뀔 때까지 가려져 있다. `setTimeout`의 최대 지연(약 24.8일)을 넘는 기간은 그만큼씩 끊어서 다시 건다.
 
 `applyAll()`은 먼저 페이지 세계에 채널 ID를 적어 달라고 요청한다. 그다음 모든 댓글 요소를 돌면서 `applyOne()`을 부른다. `applyOne()`은 작성자를 읽어 `findBlock()`에 넘기고, 걸린 항목이 영구냐 임시냐에 따라 설정에서 표시 방법을 골라 `applyDisplay()`에 넘기고, 메뉴 버튼이 없으면 붙인다. 읽은 값과 결과는 줄 목록으로 모아 패널에 넘긴다.
@@ -142,7 +150,7 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 
 `settings.debugPanel`이 켜져 있으면 WXT `createShadowRootUi`로 `<cleantube-panel>` 호스트를 `body`에 붙이고 그 Shadow DOM 안에 패널을 그린다. 화면 오른쪽 위에 고정. 줄마다 댓글 하나: 핸들, 채널 ID, 걸린 차단 항목(영구인지 언제까지인지, 어느 키로 걸렸는지), 차단/해제 버튼. 접을 수 있다.
 
-- 패널의 차단은 영구 차단이다. 임시 차단은 댓글 메뉴에서 한다. 해제는 걸린 항목을 목록에서 뺀다. 둘 다 storage에 쓰기만 하고, 화면 갱신은 `watch()` 경로가 한다.
+- 패널의 차단은 영구 차단이다. 임시 차단은 댓글 메뉴에서 한다. 해제는 걸린 항목을 목록에서 뺀다. 둘 다 storage에 쓰기만 하고, 화면 갱신은 `watchBlocked()` 경로가 한다.
 - 스캔 결과가 이전과 같으면 다시 그리지 않는다.
 - Shadow DOM 안의 변경은 `MutationObserver`에 잡히지 않으므로 패널을 그려도 스캔이 다시 돌지 않는다.
 - `style.css`는 페이지에 적용돼야 해서 `cssInjectionMode: 'ui'`를 쓸 수 없다. 그래서 `panel.css`를 `?inline`으로 문자열로 가져와 `css` 옵션으로 넘긴다.
@@ -196,8 +204,8 @@ entrypoints/youtube.content/index.ts              (격리 세계)
 
 ## UI
 
-- `hooks/useSettings.ts` `loadSettings()`로 초기값을 읽고 `watch()`로 구독한다. `update(patch)`는 최신 값을 다시 읽어 병합한 뒤 저장한다. 다른 창에서 바꾼 값을 덮어쓰지 않기 위해서다.
-- `hooks/useBlocked.ts` 차단 목록을 읽고 구독한다. 쓰기는 `blocklist.ts`의 `addBlock`/`removeBlock`을 그대로 내보낸다.
+- `hooks/useSettings.ts` `loadSettings()`로 초기값을 읽고 `watchSettings()`로 구독한다. `update(patch)`는 `updateSettings()`를 부르고 그 결과로 바로 그린다.
+- `hooks/useBlocked.ts` `loadBlocked()`로 읽고 `watchBlocked()`로 구독한다. 쓰기는 `blocklist.ts`의 `addBlock`/`removeBlock`을 그대로 내보낸다.
 - `entrypoints/popup/App.tsx` 차단 목록, 영구 차단 설정(표시 방법), 임시 차단 설정(기간, 표시 방법), 답글도 함께 가리기, 디버그 패널 토글. 기간은 1일·7일·30일 또는 직접 입력(숫자 + 시간/일)이고 ms 하나로 저장한다.
 - `utils/duration.ts` `HOUR_MS`, `DAY_MS`, `formatDuration(ms)`. 팝업과 댓글 메뉴가 같은 표기("7일", "3시간")를 쓰게 한다.
 - `components/BlockList.tsx` 차단 목록 보기와 편집. 이름 자리에 핸들(없으면 채널 ID), 아래에 영구인지 언제까지인지. 손으로 넣는 항목은 영구 차단이다. 만료된 항목은 보여 주지 않는다. 스타일은 옆의 `BlockList.css`.

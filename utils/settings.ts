@@ -24,6 +24,11 @@ export interface Settings {
   coverReplies: boolean;
 }
 
+/** updateSettings()에 넘기는 변경. display는 한쪽만 넘겨도 된다. */
+export type SettingsPatch = Partial<Omit<Settings, 'display'>> & {
+  display?: Partial<Settings['display']>;
+};
+
 export const DEFAULT_SETTINGS: Settings = {
   debugPanel: false,
   temporaryDurationMs: 7 * DAY_MS,
@@ -33,13 +38,10 @@ export const DEFAULT_SETTINGS: Settings = {
 
 /**
  * 'sync:' 접두사 = chrome.storage.sync. 같은 크롬 계정의 다른 기기와 동기화된다.
- * 팝업과 콘텐츠 스크립트가 이 하나를 공유하고,
- * watch()로 변경을 구독하면 어느 쪽에서 바꿔도 즉시 반영된다.
- *
- * 전에 저장된 객체에는 나중에 추가한 필드가 없을 수 있다. fallback은 값이 통째로 없을 때만 쓰이므로
- * 읽는 쪽에서 DEFAULT_SETTINGS 위에 덮어 쓴다.
+ * 팝업과 콘텐츠 스크립트가 이 하나를 공유하고, watchSettings()로 구독하면 어느 쪽에서 바꿔도 즉시 반영된다.
+ * 모듈 밖으로 내보내지 않는다. 읽기, 쓰기, 구독은 아래 함수로만 해서 병합 규칙이 한 곳에 있게 한다.
  */
-export const settingsItem = storage.defineItem<Settings>('sync:settings', {
+const settingsItem = storage.defineItem<Settings>('sync:settings', {
   fallback: DEFAULT_SETTINGS,
 });
 
@@ -47,7 +49,27 @@ export async function loadSettings(): Promise<Settings> {
   return withDefaults(await settingsItem.getValue());
 }
 
-export function withDefaults(value: Partial<Settings> | null | undefined): Settings {
+/** 다른 창에서 바꾼 값을 덮어쓰지 않도록 최신 값을 읽어서 병합한다. 병합한 결과를 돌려준다. */
+export async function updateSettings(patch: SettingsPatch): Promise<Settings> {
+  const current = await loadSettings();
+  const next: Settings = {
+    ...current,
+    ...patch,
+    display: { ...current.display, ...patch.display },
+  };
+  await settingsItem.setValue(next);
+  return next;
+}
+
+export function watchSettings(callback: (settings: Settings) => void): () => void {
+  return settingsItem.watch((next) => callback(withDefaults(next)));
+}
+
+/**
+ * 전에 저장된 객체에는 나중에 추가한 필드가 없을 수 있다. fallback은 값이 통째로 없을 때만 쓰이므로
+ * 읽을 때마다 DEFAULT_SETTINGS 위에 덮어 쓴다.
+ */
+function withDefaults(value: Partial<Settings> | null | undefined): Settings {
   return {
     ...DEFAULT_SETTINGS,
     ...value,

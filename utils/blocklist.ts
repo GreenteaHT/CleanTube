@@ -5,8 +5,9 @@ import { entryKey, isExpired, parseEntry, type BlockEntry } from './matcher';
  * 차단 목록. 'local:' = chrome.storage.local.
  * sync는 항목당 8KB라 객체 80개 안팎에서 넘친다. local은 10MB라 사실상 한도가 없다.
  * 대신 다른 기기와 동기화되지 않는다. 설정(utils/settings.ts)은 작아서 sync에 남아 있다.
+ * 모듈 밖으로 내보내지 않는다. 읽기, 쓰기, 구독은 아래 함수로만 해서 쓰기 규칙이 한 곳에 있게 한다.
  */
-export const blockedItem = storage.defineItem<BlockEntry[]>('local:blocked', {
+const blockedItem = storage.defineItem<BlockEntry[]>('local:blocked', {
   fallback: [],
 });
 
@@ -14,6 +15,10 @@ export async function loadBlocked(): Promise<BlockEntry[]> {
   // 모듈을 불러올 때가 아니라 처음 읽을 때 옮긴다. 빌드 중에는 브라우저 API가 없다.
   await (migrated ??= migrateLegacy());
   return blockedItem.getValue();
+}
+
+export function watchBlocked(callback: (entries: BlockEntry[]) => void): () => void {
+  return blockedItem.watch((next) => callback(next ?? []));
 }
 
 /** 같은 대상의 기존 항목은 새 항목으로 바꾼다. 임시 차단을 영구로 바꾸거나 기간을 다시 정할 때. */

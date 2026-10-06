@@ -22,7 +22,7 @@ export default function App() {
   if (!settings || !blocked) return <div className="popup muted">불러오는 중…</div>;
 
   const setMode = (kind: 'permanent' | 'temporary', mode: DisplayMode) =>
-    update({ display: { ...settings.display, [kind]: mode } });
+    update({ display: { [kind]: mode } });
 
   return (
     <div className="popup">

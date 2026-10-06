@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { addBlock, blockedItem, loadBlocked, removeBlock } from '@/utils/blocklist';
+import { addBlock, loadBlocked, removeBlock, watchBlocked } from '@/utils/blocklist';
 import type { BlockEntry } from '@/utils/matcher';
 
 /**
@@ -14,7 +14,7 @@ export function useBlocked() {
     loadBlocked().then((value) => {
       if (alive) setBlocked(value);
     });
-    const unwatch = blockedItem.watch((next) => setBlocked(next ?? []));
+    const unwatch = watchBlocked(setBlocked);
     return () => {
       alive = false;
       unwatch();

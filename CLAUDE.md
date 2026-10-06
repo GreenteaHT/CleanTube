@@ -18,8 +18,8 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 표시 방법에 맞는 속성을 붙인다. `display.ts`는 표시 방법 적용(무엇을 가릴지, 애니메이션, 가림막), `source.ts`는 차단한 댓글의 주소·제목·내용 읽기, `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
 - `entrypoints/popup/` React UI. 차단 목록, 표시 방법, 디버그 패널 토글. `useSettings`와 `useBlocked` 훅으로 읽고 쓴다.
-- `utils/blocklist.ts` 차단 목록. `storage.local`. 쓰기는 `addBlock`/`removeBlock`으로만 한다.
-- `utils/settings.ts` Settings 타입과 `storage.sync` 정의. 설정 항목을 추가할 때 여기서 시작.
+- `utils/blocklist.ts` 차단 목록. `storage.local`. 읽기 `loadBlocked`, 구독 `watchBlocked`, 쓰기는 `addBlock`/`removeBlock`으로만 한다.
+- `utils/settings.ts` Settings 타입과 `storage.sync` 정의. 설정 항목을 추가할 때 여기서 시작. 읽기 `loadSettings`, 구독 `watchSettings`, 쓰기는 `updateSettings`로만 한다.
 - `utils/matcher.ts` 순수 매칭 함수. 브라우저 API 의존 금지. 테스트는 `tests/matcher.test.ts`.
 - `utils/duration.ts` 기간 상수와 표기("7일", "3시간").
 - `utils/youtube.ts` 두 콘텐츠 스크립트가 같이 쓰는 셀렉터와 속성·이벤트 이름.
@@ -42,6 +42,7 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - 식별자는 영어, 주석과 문서는 한글.
 - 주석은 "왜"만 적는다. "무엇을"은 이름과 타입으로 설명한다.
 - `utils/matcher.ts`는 DOM, storage, WXT를 import하지 않는다. 현재 시각도 인자로 받는다. 단위 테스트가 가능해야 한다.
+- storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖으로 내보내지 않는다. 그 두 파일이 내보내는 읽기·쓰기·구독 함수만 쓴다. WXT auto-import는 꺼 두었다. WXT API는 `#imports`에서, 우리 모듈은 `@/`에서 명시적으로 import한다.
 - `entrypoints/youtube-main.content.ts`와 `utils/youtube.ts`는 페이지 세계에서 돈다. 확장기능 API(storage, runtime)를 쓰지 않는다.
 - 콘텐츠 스크립트는 유튜브 DOM을 지우지 않는다. 가림은 속성만 토글해서 차단을 풀면 되돌아오게 한다. 우리 요소(메뉴 버튼, 가림막)를 추가하는 건 괜찮다.
 - 표시 방법의 모양은 `style.css`에만 둔다. `display.ts`는 속성을 붙이고 뗄 뿐이다.
