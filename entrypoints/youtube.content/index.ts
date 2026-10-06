@@ -41,7 +41,8 @@ export default defineContentScript({
       readAuthor,
     );
 
-    // DOM 변경이 몰려와도 150ms에 한 번만 스캔한다. 값은 임시. 실측 후 다시 정한다 (backlog).
+    // DOM 변경이 몰려와도 150ms에 한 번만 스캔한다. 새로 붙은 댓글은 아래 콜백이 바로 처리하므로 이 스캔은 안전망이다.
+    // 실측(2026-10-06)에서 간격은 0~500ms 어디든 비용이 같았고, 150ms는 페이지 로드 직후의 몰림만 걸러 준다. docs/decisions.md 참고.
     let timer: number | undefined;
     const schedule = () => {
       if (timer !== undefined) return;
