@@ -74,7 +74,8 @@ export function findBlock(
   return temporary;
 }
 
-function matches(author: Author, entry: BlockEntry): boolean {
+/** entry가 author에게 걸리는지. 만료는 따지지 않는다. */
+export function matches(author: Author, entry: BlockEntry): boolean {
   // 양쪽 다 채널 ID가 있으면 그것만 본다. 대소문자가 다르면 다른 채널이다.
   // 핸들까지 보면, 차단한 사람이 버린 핸들을 나중에 가져간 다른 사람이 걸린다.
   if (entry.channelId && author.channelId) return entry.channelId === author.channelId;

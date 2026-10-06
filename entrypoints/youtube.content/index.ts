@@ -1,11 +1,11 @@
 import { defineContentScript } from '#imports';
-import { addBlock, loadBlocked, removeBlock, watchBlocked } from '@/utils/blocklist';
+import { blockAuthor, loadBlocked, removeBlock, unblockAuthor, watchBlocked } from '@/utils/blocklist';
 import { formatDuration } from '@/utils/duration';
 import { entryKey, findBlock, type Author, type BlockEntry } from '@/utils/matcher';
 import { loadSettings, watchSettings, type Settings } from '@/utils/settings';
 import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
 import { OVERLAY_ATTR, applyDisplay } from './display';
-import { MENU_HOST, TRIGGER_ATTR, createCommentMenu } from './menu';
+import { MENU_HOST, TRIGGER_ATTR, createCommentMenu, type MenuItem } from './menu';
 import { PANEL_HOST, createPanel, type Panel, type PanelRow } from './panel';
 import { readSource } from './source';
 import './style.css';
@@ -27,19 +27,8 @@ export default defineContentScript({
     // let은 그 줄이 실행되기 전에 건드리면 오류가 난다.
     let expiryTimer: number | undefined;
 
-    // 댓글마다 붙는 메뉴. 항목은 여기에 한 줄씩 추가한다.
-    // 임시 차단의 기간은 팝업 설정에서 정한다. 얼마 동안인지 누르기 전에 알 수 있게 글자에 적는다.
-    const menu = await createCommentMenu(
-      ctx,
-      [
-        { label: '영구 차단', run: (author, comment) => block(author, comment) },
-        {
-          label: () => `임시 차단 · ${formatDuration(settings.temporaryDurationMs)}`,
-          run: (author, comment) => block(author, comment, settings.temporaryDurationMs),
-        },
-      ],
-      readAuthor,
-    );
+    // 댓글마다 붙는 메뉴. 항목은 아래 menuItems()에 한 줄씩 추가한다.
+    const menu = await createCommentMenu(ctx, menuItems, readAuthor);
 
     // DOM 변경이 몰려와도 150ms에 한 번만 스캔한다. 새로 붙은 댓글은 아래 콜백이 바로 처리하므로 이 스캔은 안전망이다.
     // 실측(2026-10-06)에서 간격은 0~500ms 어디든 비용이 같았고, 150ms는 페이지 로드 직후의 몰림만 걸러 준다. docs/decisions.md 참고.
@@ -161,8 +150,31 @@ export default defineContentScript({
     }
 
     /**
+     * 메뉴를 열 때마다 그 댓글의 차단 상태를 보고 항목을 정한다.
+     * 걸려 있는 종류의 자리에는 해제가 온다. 다른 종류는 그대로 남아서, 누르면 그 종류로 바뀐다.
+     * 글자와 동작은 열 때 한 쌍으로 정해 둔다. 누를 때 상태를 다시 보면, 메뉴가 열려 있는 사이에
+     * 임시 차단이 끝났을 때 "임시 차단 해제"가 차단을 건다.
+     * 임시 차단의 기간은 팝업 설정에서 정한다. 얼마 동안인지 누르기 전에 알 수 있게 글자에 적는다.
+     */
+    function menuItems(author: Author, comment: HTMLElement): MenuItem[] {
+      const hit = findBlock(author, blocked, Date.now());
+      const permanent = hit !== null && hit.until === undefined;
+      const temporary = hit !== null && hit.until !== undefined;
+      const durationMs = settings.temporaryDurationMs;
+      const unblock = () => void unblockAuthor(author);
+      return [
+        permanent
+          ? { label: '영구 차단 해제', run: unblock }
+          : { label: '영구 차단', run: () => block(author, comment) },
+        temporary
+          ? { label: '임시 차단 해제', run: unblock }
+          : { label: `임시 차단 · ${formatDuration(durationMs)}`, run: () => block(author, comment, durationMs) },
+      ];
+    }
+
+    /**
      * comment는 차단을 누른 그 댓글. 어느 영상의 어떤 댓글이었는지를 항목에 같이 남긴다.
-     * durationMs가 없으면 영구 차단. 화면 갱신은 위의 watch가 한다.
+     * durationMs가 없으면 영구 차단. 이미 걸린 차단이 있으면 새 항목이 그것을 대신한다. 화면 갱신은 위의 watch가 한다.
      */
     function block(author: Author, comment: HTMLElement, durationMs?: number) {
       if (!author.channelId && !author.handle) return;
@@ -174,7 +186,7 @@ export default defineContentScript({
       if (durationMs !== undefined) entry.until = now + durationMs;
       const source = readSource(comment);
       if (source) entry.source = source;
-      void addBlock(entry);
+      void blockAuthor(author, entry);
     }
   },
 });

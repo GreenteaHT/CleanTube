@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { entryKey, findBlock, isExpired, parseEntry, type BlockEntry } from '../utils/matcher';
+import { entryKey, findBlock, isExpired, matches, parseEntry, type BlockEntry } from '../utils/matcher';
 
 const ID = 'UCrKxP6IDEsFLuX_g8bx-43w';
 const OTHER_ID = 'UCC5NfQ6Mf0dq_eEwv4P_hWA';
@@ -97,6 +97,27 @@ describe('findBlock: 임시 차단', () => {
 describe('findBlock: 빈 목록', () => {
   it('null', () => {
     expect(findBlock({ channelId: ID, handle: '@a' }, [], NOW)).toBeNull();
+  });
+});
+
+describe('matches', () => {
+  it('키가 다른 항목 둘이 같은 작성자에게 걸릴 수 있다', () => {
+    // 손으로 넣은 핸들 항목과 메뉴로 넣은 채널 ID 항목. 작성자 기준으로 풀 때는 둘 다 빠져야 한다.
+    const author = { channelId: ID, handle: '@name' };
+    const typed = { handle: '@Name' };
+    const fromMenu = { channelId: ID, handle: '@name', until: NOW + 100 };
+    expect(entryKey(typed)).not.toBe(entryKey(fromMenu));
+    expect(matches(author, typed)).toBe(true);
+    expect(matches(author, fromMenu)).toBe(true);
+  });
+
+  it('핸들이 같아도 채널 ID가 다른 항목은 걸리지 않는다', () => {
+    const author = { channelId: ID, handle: '@name' };
+    expect(matches(author, { channelId: OTHER_ID, handle: '@name' })).toBe(false);
+  });
+
+  it('만료는 따지지 않는다', () => {
+    expect(matches({ channelId: ID }, { channelId: ID, until: NOW - 1 })).toBe(true);
   });
 });
 

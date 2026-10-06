@@ -1,5 +1,5 @@
 import { storage } from '#imports';
-import { entryKey, isExpired, type BlockEntry } from './matcher';
+import { entryKey, isExpired, matches, type Author, type BlockEntry } from './matcher';
 
 /**
  * 차단 목록. 'local:' = chrome.storage.local.
@@ -19,7 +19,7 @@ export function watchBlocked(callback: (entries: BlockEntry[]) => void): () => v
   return blockedItem.watch((next) => callback(next ?? []));
 }
 
-/** 같은 대상의 기존 항목은 새 항목으로 바꾼다. 임시 차단을 영구로 바꾸거나 기간을 다시 정할 때. */
+/** 키가 같은 기존 항목은 새 항목으로 바꾼다. 목록에 같은 키가 둘 있으면 안 된다. 팝업에서 손으로 넣을 때 쓴다. */
 export async function addBlock(entry: BlockEntry): Promise<void> {
   const key = entryKey(entry);
   await update((entries) => [...entries.filter((e) => entryKey(e) !== key), entry]);
@@ -28,6 +28,25 @@ export async function addBlock(entry: BlockEntry): Promise<void> {
 export async function removeBlock(entry: BlockEntry): Promise<void> {
   const key = entryKey(entry);
   await update((entries) => entries.filter((e) => entryKey(e) !== key));
+}
+
+/**
+ * author에게 걸린 차단을 entry 하나로 바꾼다. 유튜브 화면에서 댓글을 보고 차단할 때 쓴다.
+ * 같은 사람이 키가 다른 항목 여럿에 걸려 있을 수 있다. 손으로 넣은 핸들 항목과 메뉴로 넣은 채널 ID 항목이 그렇다.
+ * 키가 같은 것만 바꾸면, 영구를 임시로 바꿔도 남은 영구 항목이 이겨서 그대로다. 그래서 author에게 걸리는 것을 전부 뺀다.
+ * 빼고 넣는 것을 한 번에 쓴다. 나눠 쓰면 그 사이에 풀린 댓글이 화면에 나왔다가 다시 가려진다.
+ */
+export async function blockAuthor(author: Author, entry: BlockEntry): Promise<void> {
+  const key = entryKey(entry);
+  await update((entries) => [
+    ...entries.filter((e) => entryKey(e) !== key && !matches(author, e)),
+    entry,
+  ]);
+}
+
+/** author에게 걸린 차단을 모두 푼다. 하나만 빼면 다른 항목에 걸려 그 댓글이 계속 가려져 있을 수 있다. */
+export async function unblockAuthor(author: Author): Promise<void> {
+  await update((entries) => entries.filter((e) => !matches(author, e)));
 }
 
 /**

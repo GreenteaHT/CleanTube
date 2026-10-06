@@ -18,7 +18,7 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 표시 방법에 맞는 속성을 붙인다. `display.ts`는 표시 방법 적용(무엇을 가릴지, 애니메이션, 가림막), `source.ts`는 차단한 댓글의 주소·제목·내용 읽기, `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
 - `entrypoints/popup/` React UI. 차단 목록, 표시 방법, 디버그 패널 토글. `useSettings`와 `useBlocked` 훅으로 읽고 쓴다.
-- `utils/blocklist.ts` 차단 목록. `storage.local`. 읽기 `loadBlocked`, 구독 `watchBlocked`, 쓰기는 `addBlock`/`removeBlock`으로만 한다.
+- `utils/blocklist.ts` 차단 목록. `storage.local`. 읽기 `loadBlocked`, 구독 `watchBlocked`, 쓰기는 `addBlock`/`removeBlock`(항목 하나)과 `blockAuthor`/`unblockAuthor`(그 작성자에게 걸린 것 전부)로만 한다.
 - `utils/settings.ts` Settings 타입과 `storage.sync` 정의. 설정 항목을 추가할 때 여기서 시작. 읽기 `loadSettings`, 구독 `watchSettings`, 쓰기는 `updateSettings`로만 한다.
 - `utils/matcher.ts` 순수 매칭 함수. 브라우저 API 의존 금지. 테스트는 `tests/matcher.test.ts`.
 - `utils/duration.ts` 기간 상수와 표기("7일", "3시간").
@@ -46,7 +46,7 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - `entrypoints/youtube-main.content.ts`와 `utils/youtube.ts`는 페이지 세계에서 돈다. 확장기능 API(storage, runtime)를 쓰지 않는다.
 - 콘텐츠 스크립트는 유튜브 DOM을 지우지 않는다. 가림은 속성만 토글해서 차단을 풀면 되돌아오게 한다. 우리 요소(메뉴 버튼, 가림막)를 추가하는 건 괜찮다.
 - 표시 방법의 모양은 `style.css`에만 둔다. `display.ts`는 속성을 붙이고 뗄 뿐이다.
-- 댓글 메뉴 항목은 `index.ts`의 `createCommentMenu` 호출에 `{ label, run }` 한 줄로 추가한다. 고를 값이 여러 개인 설정(기간 같은 것)은 메뉴가 아니라 팝업에 둔다.
+- 댓글 메뉴 항목은 `index.ts`의 `menuItems()`가 돌려주는 목록에 `{ label, run }` 한 줄로 추가한다. 고를 값이 여러 개인 설정(기간 같은 것)은 메뉴가 아니라 팝업에 둔다.
 - `main()` 안에서 `let`/`const`는 그것을 쓰는 함수가 처음 불리기 전에 선언한다. 함수 선언은 끌어올려지지만 `let`은 아니어서, 순서가 틀리면 콘텐츠 스크립트가 시작하다 죽는다.
 - 새 설정 항목은 `Settings` 타입, `DEFAULT_SETTINGS`, UI, 콘텐츠 스크립트 순서로 추가한다.
 - 유튜브 셀렉터를 추가하거나 바꾸면 어느 화면의 어떤 요소인지 주석에 적는다.

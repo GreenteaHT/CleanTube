@@ -3,10 +3,8 @@ import type { Author } from '@/utils/matcher';
 import css from './menu.css?inline';
 
 export interface MenuItem {
-  /** 설정에 따라 달라지는 글자는 함수로 준다. 메뉴를 열 때마다 다시 읽는다. */
-  label: string | (() => string);
-  /** comment는 메뉴를 연 그 댓글 요소. */
-  run(author: Author, comment: HTMLElement): void;
+  label: string;
+  run(): void;
 }
 
 export interface CommentMenu {
@@ -31,10 +29,13 @@ const ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12
  * 댓글마다 버튼 하나, 드롭다운은 페이지에 하나(유튜브 메뉴와 같은 방식).
  * 유튜브의 ⋮ 메뉴에 항목을 끼우지 않는다. 로그아웃이면 그 메뉴가 없고, 로그인이어도 공용 팝업에 매번 다시 그려져서
  * 끼운 항목을 유지하기 어렵다. 우리 버튼과 메뉴는 로그인 여부와 무관하게 같은 코드로 동작한다.
+ *
+ * 항목은 목록이 아니라 itemsFor로 받아 메뉴를 열 때마다 묻는다. 차단된 댓글에는 해제가 나오는 것처럼
+ * 댓글마다 달라서다. comment는 메뉴를 연 그 댓글 요소.
  */
 export async function createCommentMenu(
   ctx: ContentScriptContext,
-  items: readonly MenuItem[],
+  itemsFor: (author: Author, comment: HTMLElement) => readonly MenuItem[],
   readAuthor: (comment: HTMLElement) => Author,
 ): Promise<CommentMenu> {
   let root: HTMLElement | undefined;
@@ -113,15 +114,15 @@ export async function createCommentMenu(
     who.textContent = author.handle ?? author.channelId ?? '작성자를 못 읽음';
     root.replaceChildren(who);
 
-    for (const item of items) {
+    for (const item of itemsFor(author, comment)) {
       const button = document.createElement('button');
       button.type = 'button';
       button.setAttribute('role', 'menuitem');
-      button.textContent = typeof item.label === 'string' ? item.label : item.label();
+      button.textContent = item.label;
       button.disabled = !author.handle && !author.channelId;
       button.addEventListener('click', () => {
         close();
-        item.run(author, comment);
+        item.run();
       });
       root.append(button);
     }
