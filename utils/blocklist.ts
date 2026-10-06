@@ -1,5 +1,5 @@
 import { storage } from '#imports';
-import { entryKey, isExpired, parseEntry, type BlockEntry } from './matcher';
+import { entryKey, isExpired, type BlockEntry } from './matcher';
 
 /**
  * 차단 목록. 'local:' = chrome.storage.local.
@@ -11,9 +11,7 @@ const blockedItem = storage.defineItem<BlockEntry[]>('local:blocked', {
   fallback: [],
 });
 
-export async function loadBlocked(): Promise<BlockEntry[]> {
-  // 모듈을 불러올 때가 아니라 처음 읽을 때 옮긴다. 빌드 중에는 브라우저 API가 없다.
-  await (migrated ??= migrateLegacy());
+export function loadBlocked(): Promise<BlockEntry[]> {
   return blockedItem.getValue();
 }
 
@@ -40,30 +38,4 @@ async function update(change: (entries: BlockEntry[]) => BlockEntry[]) {
   const now = Date.now();
   const current = (await loadBlocked()).filter((e) => !isExpired(e, now));
   await blockedItem.setValue(change(current));
-}
-
-/**
- * 예전에는 차단 목록이 sync:settings 안에 문자열 배열(blockedAuthors)로 있었다. 한 번 옮기고 지운다.
- * 팝업과 콘텐츠 스크립트가 각자 실행해도 결과가 같다.
- * 그 형태로 저장한 브라우저가 더 없으면 이 함수는 지워도 된다.
- */
-let migrated: Promise<void> | undefined;
-
-async function migrateLegacy() {
-  const old = await storage.getItem<{ blockedAuthors?: unknown }>('sync:settings');
-  if (!old || !Array.isArray(old.blockedAuthors)) return;
-
-  const entries = await blockedItem.getValue();
-  const keys = new Set(entries.map(entryKey));
-  for (const text of old.blockedAuthors) {
-    const entry = typeof text === 'string' ? parseEntry(text) : null;
-    if (entry && !keys.has(entryKey(entry))) {
-      keys.add(entryKey(entry));
-      entries.push(entry);
-    }
-  }
-  await blockedItem.setValue(entries);
-
-  const { blockedAuthors: _moved, ...rest } = old;
-  await storage.setItem('sync:settings', rest);
 }

@@ -69,7 +69,6 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 - `removeBlock(entry)` 같은 대상의 항목을 뺀다.
 - 둘 다 쓰기 전에 최신 값을 다시 읽고, 만료된 임시 차단을 같이 치운다.
 - 만료는 지우는 게 아니라 무시하는 것이다. 매칭이 만료된 항목을 건너뛰므로 치우는 건 다음에 쓸 때로 미뤄도 된다.
-- `loadBlocked()`는 처음 불릴 때 예전 형태(`sync:settings` 안의 `blockedAuthors: string[]`)를 한 번 옮기고 지운다.
 
 ### 설정: `utils/settings.ts`, `sync:settings`
 
