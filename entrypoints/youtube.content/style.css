@@ -75,8 +75,12 @@ html[dark] [data-cleantube-overlay] button {
   transition: opacity 0.1s;
 }
 
+/*
+ * 포커스로는 키보드 포커스(:focus-visible)일 때만 보인다. 마우스로 누른 pill에도 포커스가 남아서,
+ * :focus-within으로 하면 "다시 가리기"를 누르고 커서를 치워도 가운데 pill이 계속 보인다.
+ */
 [data-cleantube-cover='blur']:not([data-cleantube-revealed]):hover > [data-cleantube-overlay],
-[data-cleantube-cover='blur']:not([data-cleantube-revealed]) > [data-cleantube-overlay]:focus-within {
+[data-cleantube-cover='blur']:not([data-cleantube-revealed]) > [data-cleantube-overlay]:has(:focus-visible) {
   opacity: 1;
 }
 
@@ -92,6 +96,16 @@ html[dark] [data-cleantube-overlay] button {
 
 html[dark] [data-cleantube-cover='blur']:not([data-cleantube-revealed]) > [data-cleantube-overlay] button {
   background: #3f3f3f;
+}
+
+/*
+ * 열어 둔 상태에서는 가림막이 한 줄이 되어 맨 위에 놓인다.
+ * 여닫는 애니메이션 동안 내용이 transform으로 그 줄을 지나며 움직이는데, transform은 쌓임 맥락을 만들어
+ * 가림막이 내용 밑에 깔리므로 가림막을 위에 둔다.
+ */
+[data-cleantube-cover][data-cleantube-revealed] > [data-cleantube-overlay] {
+  position: relative;
+  z-index: 1;
 }
 
 /* 자리표시자: 내용을 치우고 가림막 한 줄만 남긴다 */

@@ -41,7 +41,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 |---|---|---|
 | `youtube.content/index.ts` | content_scripts | `*://*.youtube.com/*`에서 실행. 댓글 스캔과 마킹 |
 | `youtube.content/style.css` | content_scripts.css | 페이지에 적용되는 CSS. 세 가지 표시 방법, 가림막, 댓글 메뉴 버튼 모양 |
-| `youtube.content/display.ts` | (index.ts에 번들됨) | 표시 방법 적용. 무엇을 가릴지, 접히고 펼쳐지는 애니메이션, 가림막 |
+| `youtube.content/display.ts` | (index.ts에 번들됨) | 표시 방법 적용. 무엇을 가릴지, 바뀔 때의 애니메이션, 가림막 |
 | `youtube.content/menu.ts` + `menu.css` | (index.ts에 번들됨) | 댓글 메뉴. `menu.css`는 `?inline`으로 Shadow DOM 안에만 넣는다 |
 | `youtube.content/source.ts` | (index.ts에 번들됨) | 차단할 때 그 댓글의 주소, 영상 제목, 내용을 읽는다 |
 | `youtube.content/panel.ts` + `panel.css` | (index.ts에 번들됨) | 디버그 패널. `panel.css`는 `?inline`으로 문자열로 가져와 Shadow DOM 안에만 넣는다 |
@@ -120,7 +120,10 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 - 가림막. `blur`나 `placeholder`로 가린 요소의 첫 자식으로 `data-cleantube-overlay` 요소를 넣는다. "차단된 댓글" 글자와 "숨긴 항목 보기" pill이 들어 있다. `blur`에서는 댓글 위를 덮고 마우스를 올리면 pill만 보인다. `placeholder`에서는 내용 대신 그 한 줄이 보인다.
 - "숨긴 항목 보기"를 누르면 그 요소에 `data-cleantube-revealed`가 붙어 가림이 풀리고 pill이 "다시 가리기"로 바뀐다. 요소에만 적어 두므로 다시 스캔해도 유지되고 페이지를 옮기면 사라진다.
 - 가림을 풀 때는 속성과 가림막을 같이 치운다.
-- 애니메이션은 `hide`에만 있다. 사용자가 차단이나 해제를 눌렀을 때만 220ms 동안 접히거나 펼쳐진다. Web Animations API로 높이·여백·투명도를 움직이고, 끝나면 속성을 붙인다. 도중에 상태가 또 바뀌면 최신 요청을 기억했다가 끝난 뒤 그대로 맞춘다.
+- 애니메이션. 사용자가 차단이나 해제를 눌렀을 때만 220ms 동안 움직인다. 스크롤로 새로 붙은 댓글은 바로 적용된다. Web Animations API를 쓰고, 끝 값은 CSS가 정한 것을 읽는다. 가릴 때는 ease-in, 풀 때는 ease-out.
+  - `hide`: 높이·여백·투명도를 접거나 펼친다. 접힐 때는 끝난 뒤에 속성을 붙인다. 도중에 상태가 또 바뀌면 최신 요청을 기억했다가 끝난 뒤 그대로 맞춘다.
+  - `blur`, `placeholder`, "숨긴 항목 보기": 속성을 바꾸기 전후로 요소의 높이와, 자식(내용과 가림막)의 자리·투명도·블러를 재서 달라진 것만 그 사이로 움직인다. 자리가 바뀐 것은 transform으로 원래 자리에서 새 자리로 옮겨 가고, 새로 보이는 것과 모양이 통째로 바뀌는 가림막은 투명한 데서 나타난다. 그래서 흐리게는 블러가 번지고, 자리표시자는 높이가 줄며 가림막이 나타나고, "숨긴 항목 보기"를 누르면 맨 윗줄에 가림막이 나타나며 내용이 밀려 내려온다. 상태 사이의 어떤 전환도 같은 코드로 된다. 속성은 바로 바뀌어 있으므로 끝나면 CSS 값이 그대로 이어진다. 도중에 또 바뀌면 지금 보이는 값에서 새로 시작한다.
+  - 순서. 접힐 때는 가려진 모습 그대로 접히게 숨김을 먼저 맞추고, 펼칠 때는 펼친 끝 크기에 가림막이 들어가 있게 가림을 먼저 맞춘다. 숨겨진 요소의 가림은 보이지 않으니 움직이지 않는다.
 
 ### 댓글 메뉴: `youtube.content/menu.ts`
 

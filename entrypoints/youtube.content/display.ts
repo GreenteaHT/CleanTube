@@ -22,8 +22,10 @@ const THREAD_SELECTOR = 'ytd-comment-thread-renderer';
 /** 스레드 안의 답글 묶음. 이 안에 있는 댓글은 답글이다. */
 const REPLIES_SELECTOR = 'ytd-comment-replies-renderer';
 
-/** 사용자가 차단이나 해제를 눌렀을 때 접히고 펼쳐지는 시간. 취향값이라 쓰면서 조정한다. */
+/** 사용자가 차단이나 해제를 눌렀을 때 표시가 바뀌는 데 걸리는 시간. 취향값이라 쓰면서 조정한다. */
 const DURATION_MS = 220;
+
+type Cover = Exclude<DisplayMode, 'hide'>;
 
 export interface Display {
   /** 걸린 차단 항목의 키. 속성 값으로 적는다. */
@@ -51,13 +53,20 @@ export function applyDisplay(comment: HTMLElement, display: Display | null, opti
   const thread = comment.closest(REPLIES_SELECTOR)
     ? null
     : comment.closest<HTMLElement>(THREAD_SELECTOR);
-
-  setHidden(thread ?? comment, display?.mode === 'hide' ? display.key : null, options.animate);
-
+  const hideTarget = thread ?? comment;
+  const hideKey = display?.mode === 'hide' ? display.key : null;
   const cover = display && display.mode !== 'hide' ? display.mode : null;
   const coverTarget = thread && options.coverReplies ? thread : comment;
-  setCover(comment, coverTarget === comment ? cover : null);
-  if (thread) setCover(thread, coverTarget === thread ? cover : null);
+
+  // 숨겨진 요소의 가림은 보이지 않으니 움직이지 않고 바로 바꾼다.
+  const animateCover = options.animate && hideKey === null && !hideTarget.hasAttribute(BLOCKED_ATTR);
+
+  // 접힐 때는 가려진 모습 그대로 접히게 숨김을 먼저 맞추고,
+  // 펼칠 때는 펼친 끝 크기에 가림막이 들어가 있게 가림을 먼저 맞춘다.
+  if (hideKey !== null) setHidden(hideTarget, hideKey, options.animate);
+  setCover(comment, coverTarget === comment ? cover : null, animateCover);
+  if (thread) setCover(thread, coverTarget === thread ? cover : null, animateCover);
+  if (hideKey === null) setHidden(hideTarget, null, options.animate);
 }
 
 // --- 완전히 숨김 ---
@@ -86,11 +95,7 @@ async function collapse(target: HTMLElement, key: string) {
   animating.add(target);
   desired.set(target, key);
   // forwards로 접힌 상태를 붙잡아 두고 속성을 붙인 뒤에 푼다. 사이에 한 프레임이라도 원래 크기로 돌아오지 않게.
-  const animation = target.animate([measure(target), COLLAPSED], {
-    duration: DURATION_MS,
-    easing: 'ease-in',
-    fill: 'forwards',
-  });
+  const animation = target.animate([measure(target), COLLAPSED], { ...timing(true), fill: 'forwards' });
   await settled(animation);
   applyDesired(target);
   animation.cancel();
@@ -100,10 +105,7 @@ async function expand(target: HTMLElement) {
   animating.add(target);
   desired.set(target, null);
   target.removeAttribute(BLOCKED_ATTR);
-  const animation = target.animate([COLLAPSED, measure(target)], {
-    duration: DURATION_MS,
-    easing: 'ease-out',
-  });
+  const animation = target.animate([COLLAPSED, measure(target)], timing(false));
   await settled(animation);
   applyDesired(target);
 }
@@ -135,34 +137,99 @@ const COLLAPSED: Keyframe = {
   overflow: 'hidden',
 };
 
-function measure(el: HTMLElement): Keyframe {
-  const s = getComputedStyle(el);
-  return {
-    opacity: 1,
-    height: s.height,
-    marginTop: s.marginTop,
-    marginBottom: s.marginBottom,
-    paddingTop: s.paddingTop,
-    paddingBottom: s.paddingBottom,
-    overflow: 'hidden',
-  };
-}
-
 // --- 블러, 자리표시자 ---
 
-function setCover(target: HTMLElement, mode: 'blur' | 'placeholder' | null): void {
+/** 가림이 바뀌는 중인 요소의 애니메이션. 끝나기 전에 또 바뀌면 멈추고 그 자리에서 이어 간다. */
+const coverAnimations = new WeakMap<Element, Animation[]>();
+
+function setCover(target: HTMLElement, mode: Cover | null, animate: boolean): void {
   const current = target.getAttribute(COVER_ATTR);
-  if (!mode) {
-    // 가림막은 속성과 함께 넣고 함께 뺀다. 속성이 없으면 가림막도 없으니 찾지 않는다.
-    if (current === null) return;
-    target.removeAttribute(COVER_ATTR);
-    target.removeAttribute(REVEALED_ATTR);
-    overlayOf(target)?.remove();
+  if (current === mode) {
+    // 유튜브가 요소를 다시 그리면서 가림막을 떨어뜨렸을 수 있다
+    if (mode !== null && !overlayOf(target)) target.prepend(createOverlay(target));
     return;
   }
-  if (current !== mode) target.setAttribute(COVER_ATTR, mode);
-  // 유튜브가 요소를 다시 그리면서 가림막을 떨어뜨렸을 수 있다
-  if (!overlayOf(target)) target.prepend(createOverlay(target));
+  change(target, animate, mode !== null, () => {
+    if (mode === null) {
+      // 가림막은 속성과 함께 넣고 함께 뺀다
+      target.removeAttribute(COVER_ATTR);
+      target.removeAttribute(REVEALED_ATTR);
+      overlayOf(target)?.remove();
+    } else {
+      target.setAttribute(COVER_ATTR, mode);
+      if (!overlayOf(target)) target.prepend(createOverlay(target));
+    }
+  });
+}
+
+/** mutate()로 DOM을 바꾸고, animate면 바꾸기 전후를 재서 달라진 것을 움직인다. */
+function change(target: HTMLElement, animate: boolean, covering: boolean, mutate: () => void): void {
+  // 움직이는 도중이면 멈추기 전에 재서 지금 보이는 값에서 이어 간다
+  const before = animate ? snapshot(target) : null;
+  coverAnimations.get(target)?.forEach((animation) => animation.cancel());
+  mutate();
+  if (before) coverAnimations.set(target, transition(before, snapshot(target), timing(covering)));
+}
+
+interface Shot {
+  rect: DOMRect;
+  style: Keyframe;
+}
+
+type Snapshot = Map<Element, Shot>;
+
+/**
+ * 요소 자신과 자식들(내용, 가림막)의 자리와 값. 요소 자신은 높이도 잰다.
+ * 가림이 바뀌기 전후로 재서 달라진 것만 움직이면, 흐리게·자리표시자·"숨긴 항목 보기"와 그 사이의 전환을 따로 적지 않아도 된다.
+ */
+function snapshot(target: HTMLElement): Snapshot {
+  const shots: Snapshot = new Map();
+  const shoot = (el: Element, style: Keyframe) => shots.set(el, { rect: el.getBoundingClientRect(), style });
+  shoot(target, { ...paint(target), ...measure(target) });
+  for (const child of target.children) shoot(child, paint(child));
+  return shots;
+}
+
+/** 자리를 옮길 때 원래 transform 위에 얹으려고 그것도 같이 읽는다. */
+function paint(el: Element): Keyframe {
+  const s = getComputedStyle(el);
+  return { opacity: s.opacity, filter: s.filter, transform: s.transform };
+}
+
+/** 전후가 다른 요소만 그 사이를 움직인다. 속성을 바꾼 뒤에 재므로 끝나면 CSS가 정한 값이 그대로 이어진다. */
+function transition(before: Snapshot, after: Snapshot, options: KeyframeAnimationOptions): Animation[] {
+  const animations: Animation[] = [];
+  for (const [el, to] of after) {
+    if (!visible(to.rect)) continue;
+    let start: Keyframe;
+    let end: Keyframe;
+    const from = before.get(el);
+    if (!from || appears(el, from, to)) {
+      start = { opacity: '0' };
+      end = { opacity: to.style.opacity };
+    } else {
+      start = { ...from.style };
+      end = { ...to.style };
+      // 자리가 바뀐 것은 원래 자리에서 새 자리로 옮겨 간다
+      const dx = from.rect.left - to.rect.left;
+      const dy = from.rect.top - to.rect.top;
+      if (dx || dy) start.transform = `translate(${dx}px, ${dy}px) ${end.transform === 'none' ? '' : end.transform}`;
+    }
+    if (Object.keys(end).every((prop) => start[prop] === end[prop])) continue;
+    animations.push(el.animate([start, end], options));
+  }
+  return animations;
+}
+
+/** 옮겨 가는 대신 투명한 데서 나타날 것. 새로 보이는 것과, 모양이 통째로 바뀌는 가림막. */
+function appears(el: Element, from: Shot, to: Shot): boolean {
+  if (!visible(from.rect)) return true;
+  // 흐리게의 가림막은 댓글을 덮는 판이었다가 열면 맨 위 한 줄이 된다. 그 안의 pill이 가운데와 윗줄 사이를 오가지 않게 한다.
+  return el.hasAttribute(OVERLAY_ATTR) && (from.rect.width !== to.rect.width || from.rect.height !== to.rect.height);
+}
+
+function visible(rect: DOMRect): boolean {
+  return rect.width > 0 && rect.height > 0;
 }
 
 function overlayOf(target: HTMLElement): Element | null {
@@ -181,10 +248,33 @@ function createOverlay(target: HTMLElement): HTMLElement {
   pill.textContent = '숨긴 항목 보기';
   pill.addEventListener('click', (e) => {
     e.stopPropagation();
-    const revealed = target.toggleAttribute(REVEALED_ATTR);
-    pill.textContent = revealed ? '다시 가리기' : '숨긴 항목 보기';
+    const revealing = !target.hasAttribute(REVEALED_ATTR);
+    change(target, true, !revealing, () => {
+      target.toggleAttribute(REVEALED_ATTR, revealing);
+      pill.textContent = revealing ? '다시 가리기' : '숨긴 항목 보기';
+    });
   });
 
   overlay.append(label, pill);
   return overlay;
+}
+
+// --- 숨김과 가림이 같이 쓰는 것 ---
+
+/** 가릴 때는 ease-in, 풀 때는 ease-out. 세 표시 방법이 같은 리듬으로 움직이게. */
+function timing(covering: boolean): KeyframeAnimationOptions {
+  return { duration: DURATION_MS, easing: covering ? 'ease-in' : 'ease-out' };
+}
+
+function measure(el: HTMLElement): Keyframe {
+  const s = getComputedStyle(el);
+  return {
+    opacity: 1,
+    height: s.height,
+    marginTop: s.marginTop,
+    marginBottom: s.marginBottom,
+    paddingTop: s.paddingTop,
+    paddingBottom: s.paddingBottom,
+    overflow: 'hidden',
+  };
 }
