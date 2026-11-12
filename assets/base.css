@@ -90,3 +90,14 @@ button:disabled {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* 동기화 한도 안내처럼 알아 둬야 할 한 줄. 팝업과 차단 목록 페이지가 같이 쓴다 */
+.notice {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 12px;
+  /* 좁은 팝업에서 "동기화되/지"처럼 단어 가운데서 끊기지 않게 */
+  word-break: keep-all;
+}

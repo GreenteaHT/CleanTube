@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { browser } from '#imports';
 import { useBlocked } from '@/hooks/useBlocked';
 import { useSettings } from '@/hooks/useSettings';
+import { useSyncWarning } from '@/hooks/useSyncWarning';
 import { DAY_MS, HOUR_MS, formatDuration } from '@/utils/duration';
 import { isExpired } from '@/utils/matcher';
 import type { DisplayMode } from '@/utils/settings';
@@ -22,6 +23,7 @@ const DURATION_PRESETS = [DAY_MS, 7 * DAY_MS, 30 * DAY_MS];
 export default function App() {
   const { settings, update } = useSettings();
   const { blocked } = useBlocked();
+  const syncWarning = useSyncWarning();
 
   if (!settings || !blocked) return <div className="popup muted">불러오는 중…</div>;
 
@@ -45,6 +47,13 @@ export default function App() {
           차단 목록 관리
         </button>
       </section>
+      {syncWarning && (
+        <p className="notice">
+          {syncWarning.kind === 'over'
+            ? `오래전에 차단한 ${syncWarning.unsynced}명은 다른 PC로 동기화되지 않아요.`
+            : `동기화 공간의 ${syncWarning.percent}%를 쓰고 있어요.`}
+        </p>
+      )}
 
       <section className="kind">
         <h2>영구 차단</h2>

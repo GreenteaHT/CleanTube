@@ -299,7 +299,8 @@ function Details({ entry }: { entry: BlockEntry }) {
           </a>
         </dd>
       )}
-      {!source && <dd className="wide muted">어느 댓글에서 차단했는지는 기록이 없어요.</dd>}
+      {/* 경위는 동기화하지 않아서 다른 PC에서 차단한 항목에도 없다 */}
+      {!source && <dd className="wide muted">어느 댓글에서 차단했는지는 이 PC에 기록이 없어요.</dd>}
     </dl>
   );
 }

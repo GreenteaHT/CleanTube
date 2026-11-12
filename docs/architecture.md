@@ -10,7 +10,8 @@ WXT의 auto-import는 꺼 두었다(`imports: false`). 켜 두면 `utils/`, `hoo
 popup (React)    options (React)     댓글 메뉴, 디버그 패널 (유튜브 화면 안, Shadow DOM)
     |  설정          |  차단 목록         |  영구 차단 / 임시 차단 / 해제, 차단/해제 버튼
     v                v                   v
-chrome.storage.local "local:blocked"   차단 목록 (BlockEntry[])
+chrome.storage.local "local:blocked"   차단 목록 (BlockEntry[])        <-- background.ts가 다른 PC와 맞춤
+                     "local:blockedRemoved"  뺀 항목과 뺀 시각                 sync "blocked.00"~"blocked.31"
 chrome.storage.sync  "sync:settings"   설정 (임시 차단 기간, 표시 방법, 디버그 패널)
     |  watchBlocked(), watchSettings()   팝업, 차단 목록 페이지, 콘텐츠 스크립트가 각자 구독
     v
@@ -31,7 +32,7 @@ entrypoints/youtube.content/index.ts              (격리 세계)
   "차단된 댓글"로     data-cleantube-cover="placeholder"   + "숨긴 항목 보기" 가림막
 ```
 
-팝업, 차단 목록 페이지, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목 둘을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 없다.
+팝업, 차단 목록 페이지, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 차단 목록을 다른 PC와 맞추는 일만 한다. 다른 곳은 백그라운드가 있는지 모른다. 백그라운드가 맞춰 넣은 것도 `local:blocked`의 변경으로 똑같이 받는다.
 
 storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖으로 내보내지 않는다. 읽기, 쓰기, 구독은 그 두 파일이 내보내는 함수로만 한다. 병합 규칙과 쓰기 규칙이 한 곳에 있게 하려는 것이다.
 
@@ -48,6 +49,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 | `youtube-main.content.ts` | content_scripts (`world: MAIN`, `document_start`) | 요청을 받으면 댓글 요소에 채널 ID를 속성으로 적는다 |
 | `popup/` | action.default_popup | 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정, 디버그 패널 토글 |
 | `options/` | options_ui (`open_in_tab`) | 차단 목록 페이지. 목록 보기와 편집. 탭 하나로 열린다 |
+| `background.ts` | background (`service_worker`) | 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화" |
 
 ## 저장
 
@@ -55,7 +57,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 
 ### 차단 목록: `utils/blocklist.ts`, `local:blocked`
 
-`BlockEntry[]`. `chrome.storage.local`에 둔다. `sync`는 항목당 8KB라 객체 80개 안팎에서 넘치고, `local`은 10MB다. 대신 다른 기기와 동기화되지 않는다.
+`BlockEntry[]`. `chrome.storage.local`에 둔다. `sync`는 키 하나가 8KB라 목록을 통째로 넣지 못하고, 차단한 경위는 이 브라우저 밖으로 내보내지 않기로 했다. 그래서 이쪽이 원본이고, 다른 PC와는 백그라운드가 `sync`에 나눠 담아 맞춘다(아래 "차단 목록 동기화").
 
 | 필드 | 타입 | 의미 |
 |---|---|---|
@@ -72,6 +74,48 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
   - 작성자 기준이 따로 있는 이유. 같은 사람이 키가 다른 항목 여럿에 걸려 있을 수 있다. 차단 목록 페이지에서 손으로 넣은 핸들 항목은 키가 핸들이고, 메뉴로 넣은 항목은 키가 채널 ID다. 키가 같은 것만 바꾸면 영구를 임시로 바꿔도 남은 영구 항목이 이긴다. 빼기와 넣기는 한 번의 쓰기라서 그 사이에 풀린 상태가 화면에 나오지 않는다.
 - 넷 다 쓰기 전에 최신 값을 다시 읽고, 만료된 임시 차단을 같이 치운다.
 - 만료는 지우는 게 아니라 무시하는 것이다. 매칭이 만료된 항목을 건너뛰므로 치우는 건 다음에 쓸 때로 미뤄도 된다.
+- 넷 다 뺀 항목의 키와 뺀 시각을 `local:blockedRemoved`(`Record<키, epoch ms>`)에 남기고, 다시 넣은 항목은 그 기록을 지운다. 목록과 기록은 한 번에 쓴다. 다른 PC가 아직 그 항목을 들고 있다가 되살리지 않게 하려는 것이다. 기간이 끝난 임시 차단은 어느 PC에서나 똑같이 끝나므로 적지 않는다.
+
+### 차단 목록 동기화: `entrypoints/background.ts`, `utils/blocksync.ts`
+
+차단 목록을 같은 크롬 계정의 다른 PC와 맞춘다. 크롬 동기화가 꺼져 있으면 `sync`가 이 PC에만 있는 저장소처럼 동작해서 지금과 같다. 켜고 끄는 설정은 없다.
+
+```
+유튜브 탭, 팝업, 차단 목록 페이지
+    |  addBlock / removeBlock / blockAuthor / unblockAuthor  (local만 쓴다)
+    v
+local:blocked + local:blockedRemoved  <──── 합친 결과를 씀 ───┐
+    |  storage.onChanged                                       |
+    v                                                          |
+background.ts  ->  syncBlocked()  (한 번에 하나씩)             |
+    1. sync의 blocked.00~31을 읽어 unpackBuckets()             |
+    2. mergeStates(local, sync)  ───────────────────────────────┘ 바뀌었을 때만
+    3. packState()  ->  달라진 sync 키만 지우고 씀
+    4. local:blockSyncStatus에 사용량과 담지 못한 수
+    ^
+    |  storage.onChanged (다른 PC가 sync를 바꿈)
+chrome.storage.sync blocked.00 ~ blocked.31
+```
+
+- sync를 쓰는 곳은 백그라운드 하나다. 탭마다 쓰면 sync의 쓰기 한도(분당 120회)에 걸리고 서로 덮어쓴다.
+- 백그라운드는 서비스 워커라 할 일이 없으면 꺼지고, storage 변경 알림이 오면 다시 켜진다. 켜질 때마다 한 번 맞춘다. 도는 동안 알림이 더 오면 끝난 뒤 한 번만 더 돈다.
+- 자기가 쓴 것도 변경 알림을 부르지만, 다음 번에는 바뀐 게 없어서 아무것도 쓰지 않고 끝난다. `local:blockSyncStatus`만 바뀐 것에는 반응하지 않는다.
+
+`utils/blocksync.ts`는 순수 함수다. `matcher.ts`처럼 DOM, storage, WXT를 import하지 않고 현재 시각을 인자로 받는다. 테스트는 `tests/blocksync.test.ts`.
+
+- `mergeStates(local, remote, now)` 항목마다 더 나중에 한 쪽이 이긴다. 차단은 `at`, 빼기는 뺀 시각으로 비교하고, 같으면 빼기가 이긴다. `at`이 없는 예전 항목은 0으로 친다.
+  - 같은 사람의 차단이 양쪽에 있고 시각이 같으면 이 PC의 것을 쓴다(경위가 붙어 있다). 다른 PC가 나중에 다시 차단했으면 그것을 쓰되 이 PC의 경위는 옮겨 붙인다.
+  - 기간이 끝난 임시 차단과 30일(`REMOVED_TTL_MS`, 임시값)보다 오래된 빼기 기록은 버린다. 그보다 오래 꺼져 있던 PC는 뺀 항목을 되살릴 수 있다.
+  - sync에서 항목이 사라진 것은 빼기가 아니다. 빼기는 빼기 기록으로만 전한다. 그래서 공간이 모자라 sync에서 밀려난 항목도 이미 받은 PC에는 남는다.
+  - 바뀐 게 없으면 local의 객체와 순서를 그대로 돌려준다. `sameState()`로 쓸 필요가 있는지 가린다.
+- `packState(state)` sync에 담을 모양. 32개 키(`blocked.00`~`blocked.31`)에 항목의 키를 해시(FNV-1a)해 나눠 담는다. 항목 하나를 바꾸면 sync 키 하나만 다시 쓴다.
+  - 모양은 `{ e: [[채널 ID, 핸들, at, until?], …], r: [[키, 뺀 시각], …] }`. 필드 이름 없이 배열로 줄인다. 경위는 담지 않는다.
+  - 빼기 기록을 먼저 담고, 차단은 최근에 차단한 것부터 담는다. 공간이 모자라면 그보다 오래된 차단은 담지 않는다(사용자가 정함). 한 번 모자라면 그 뒤는 작은 항목이라도 담지 않는다.
+  - 같은 상태면 어느 PC에서 만들어도 같은 결과가 나와야 한다. 다르면 두 PC가 서로 덮어쓰기를 되풀이한다. 그래서 저장된 순서가 아니라 시각과 키로 정렬한다.
+  - 한도는 sync 전체 102,400바이트에서 설정 몫 2KB를 뺀 것(`SYNC_BUDGET_BYTES`, 임시값)과 키 하나 8,192바이트. 크롬은 int32를 넘는 수를 `1.794501596429e+12`처럼 지수로 적어서 센다(실측). 그대로 `JSON.stringify` 길이로 세면 한도를 넘겨 쓰기가 통째로 실패한다.
+  - 경위 없이 영구 차단 약 1,500~1,750명, 임시 차단 약 1,300명이 들어간다(핸들 길이에 따라).
+- `unpackBuckets(values)` sync에서 읽은 값을 상태로. 다른 PC나 예전 버전이 쓴 값이라 모양이 맞지 않는 것은 버린다.
+- `syncWarning(status)` 안내. 담지 못한 항목이 있으면 그 수, 없고 90%(임시값) 이상 차면 사용률. 팝업과 차단 목록 페이지가 `hooks/useSyncWarning.ts`로 읽어 띄운다.
 
 ### 설정: `utils/settings.ts`, `sync:settings`
 
@@ -223,7 +267,10 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 - `entrypoints/popup/App.tsx` 차단한 수와 "차단 목록 관리" 버튼, 영구 차단 설정(표시 방법), 임시 차단 설정(기간, 표시 방법), 답글도 함께 가리기, 디버그 패널 토글. 기간은 1일·7일·30일 또는 직접 입력(숫자 + 시간/일)이고 ms 하나로 저장한다.
   - 수는 만료된 임시 차단을 빼고 센다. 차단 목록 페이지가 보여 주는 수와 같다.
   - 버튼은 `runtime.openOptionsPage()`를 부른다. 차단 목록 페이지가 이미 열려 있으면 새 탭을 만들지 않고 그 탭으로 간다.
+  - 동기화 한도 안내가 있으면 그 아래에 한 줄. "오래전에 차단한 n명은 다른 PC로 동기화되지 않아요." 또는 "동기화 공간의 n%를 쓰고 있어요."
 - `entrypoints/options/App.tsx` 차단 목록 페이지. `BlockList` 하나와 댓글 메뉴로도 차단할 수 있다는 안내. 탭 전체를 쓰고 가운데 640px 한 단이다. 목록을 팝업이 아니라 여기 둔 이유는 [decisions.md](decisions.md) "차단 목록은 옵션 페이지에, 설정은 팝업에".
+  - 동기화 한도 안내가 있으면 목록 위에 팝업보다 긴 글로 띄운다. 이 PC에서는 그대로 가려진다는 것, 다 차면 무엇이 빠지는지까지.
+- `hooks/useSyncWarning.ts` `loadSyncStatus()`로 읽고 `watchSyncStatus()`로 구독해 `syncWarning()`의 안내를 돌려준다.
 - `utils/duration.ts` `HOUR_MS`, `DAY_MS`, `formatDuration(ms)`. 팝업과 댓글 메뉴가 같은 표기("7일", "3시간")를 쓰게 한다.
 - `components/BlockList.tsx` 차단 목록 보기와 편집. 차단 목록 페이지가 쓴다. 손으로 넣는 항목은 영구 차단이다. 만료된 항목은 보여 주지 않는다. 스타일은 옆의 `BlockList.css`.
   - 맨 위에 전체 수, + 버튼, 검색창. 그 아래에 "영구 차단"과 "임시 차단" 두 묶음(`Group`). 묶음마다 제목, 수, 정렬 select, 목록, 쪽 버튼이 있다. 비어 있는 묶음도 제목은 남고 "아직 없어요."가 나온다.
@@ -235,6 +282,6 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
   - 쪽. 묶음마다 20개(`PAGE_SIZE`, 임시값)씩 나눠 보여 준다. 목록 아래에 "이전", "2 / 3", "다음"이 있고, 한 쪽에 다 들어가면 나오지 않는다. 정렬이나 검색어를 바꾸면 첫 쪽으로 가고, 항목을 빼서 보던 쪽이 없어지면 마지막 쪽을 보여 준다. 쪽을 넘기면 묶음 제목이 화면 밖에 있을 때 화면에 들인다. 보던 쪽은 저장하지 않는다.
   - 검색. 제목 줄 오른쪽 끝의 검색창 하나가 두 묶음을 같이 거른다. 쪽으로 나뉘어 있어서 브라우저의 찾기로는 다른 쪽의 항목을 못 찾기 때문에 둔다. 핸들과 채널 ID에서 대소문자를 가리지 않고 일부만 맞아도 찾는다(`matchesQuery`). 차단한 경위에서는 찾지 않는다. 검색 중에는 묶음의 수가 걸린 수이고 맨 위의 전체 수는 그대로다. 걸린 게 없는 묶음에는 "찾는 작성자가 없어요."가 나온다. 검색어는 저장하지 않는다.
     - 묶음은 보던 쪽을 그때의 검색어와 같이 기억한다. 검색어가 다르면 첫 쪽으로 친다. effect로 되돌리면 한 번은 엉뚱한 쪽이 그려진다.
-  - 항목마다 펼치기 버튼이 있다. 펼치면 차단한 때, 영상 제목, 댓글 내용, "이 댓글로 이동" 링크가 나온다. 두 묶음을 통틀어 한 번에 하나만 펼친다. `at`도 `source`도 없는 예전 항목에는 버튼이 없다.
+  - 항목마다 펼치기 버튼이 있다. 펼치면 차단한 때, 영상 제목, 댓글 내용, "이 댓글로 이동" 링크가 나온다. 두 묶음을 통틀어 한 번에 하나만 펼친다. `at`도 `source`도 없는 예전 항목에는 버튼이 없다. 경위는 동기화하지 않아서, 다른 PC에서 차단한 항목은 차단한 때와 "이 PC에 기록이 없어요"만 나온다.
   - 링크는 저장된 주소가 유튜브의 https 주소일 때만 만든다. 저장소에 있는 값을 그대로 믿지 않는다.
-- `assets/base.css` 팝업과 차단 목록 페이지의 기본 스타일. 색, 글꼴, 버튼, 입력창.
+- `assets/base.css` 팝업과 차단 목록 페이지의 기본 스타일. 색, 글꼴, 버튼, 입력창, 안내 상자(`.notice`).
