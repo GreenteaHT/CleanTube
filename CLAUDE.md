@@ -19,7 +19,8 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
 - `entrypoints/popup/` React UI. 차단한 수와 차단 목록 페이지를 여는 버튼, 동기화 한도 안내, 표시 방법, 디버그 패널 토글. `useSettings`, `useBlocked`, `useSyncWarning` 훅으로 읽고 쓴다.
 - `entrypoints/options/` React UI. 차단 목록 페이지. 탭 하나로 열린다. 목록 보기와 편집은 여기에만 있다. `useBlocked` 훅으로 읽고 쓴다.
-- `entrypoints/background.ts` 서비스 워커. 차단 목록을 다른 PC와 맞추는 일만 한다. `storage.sync`는 여기서만 쓴다.
+- `entrypoints/onboarding/` React UI. 첫 사용 안내. 처음 설치하면 탭으로 열린다. 차단하는 법을 보여 주고 표시 방법·기간·답글 범위를 예시 댓글을 보며 고르게 한다. 예시 댓글은 유튜브와 같은 태그 이름으로 그리고 `display.ts`의 `applyDisplay`와 `style.css`·`menu.css`를 그대로 써서 유튜브에서처럼 가리고 움직인다. 그쪽을 고치면 예시도 같이 확인한다.
+- `entrypoints/background.ts` 서비스 워커. 처음 설치하면 첫 사용 안내 탭을 열고, 차단 목록을 다른 PC와 맞춘다. 차단 목록의 `storage.sync`는 여기서만 쓴다.
 - `utils/blocklist.ts` 차단 목록. `storage.local`. 읽기 `loadBlocked`, 구독 `watchBlocked`, 쓰기는 `addBlock`/`removeBlock`(항목 하나)과 `blockAuthor`/`unblockAuthor`(그 작성자에게 걸린 것 전부)로만 한다. 뺀 항목은 뺀 시각을 남긴다. 다른 PC와 맞추는 `syncBlocked`는 백그라운드만 부른다.
 - `utils/blocksync.ts` 차단 목록을 sync에 나눠 담고 다른 PC의 것과 합치는 순수 함수. 테스트는 `tests/blocksync.test.ts`.
 - `utils/settings.ts` Settings 타입과 `storage.sync` 정의. 설정 항목을 추가할 때 여기서 시작. 읽기 `loadSettings`, 구독 `watchSettings`, 쓰기는 `updateSettings`로만 한다.
@@ -32,6 +33,7 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - "차단"은 누구를 가릴지다. 영구 차단과 임시 차단(기간이 지나면 풀림)이 있다.
 - "표시 방법"은 차단된 댓글이 어떻게 보일지다. 완전히 숨기기, 흐리게, 문구로 바꾸기("차단된 댓글" 한 줄로).
 - UI 글자에 "숨기기"를 "차단"의 뜻으로 쓰지 않는다.
+- UI 글은 명사형·개조식으로 쓴다. "-요", "-다", "-니다"로 끝내지 않는다("찾는 작성자 없음", "기간 변경은 새로 거는 임시 차단부터 적용"). 첫 사용 안내의 예시 댓글처럼 사람이 쓴 글을 흉내 낸 것은 예외.
 
 ## 진행 방식
 

@@ -61,6 +61,9 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
+  /* 한글이 "표/시"처럼 단어 가운데서 끊기지 않게. 띄어쓰기 없이 긴 채널 ID 같은 것은 넘치지 않게 끊는다 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 h1,
@@ -190,6 +193,178 @@ button:disabled {
 
 .temporary .segmented button[aria-pressed='true'] {
   background: var(--temp);
+}
+
+/*
+ * 미끄러지는 여러 칸. 고른 칸을 칠하는 대신 뒤에 깐 덩어리(.segmented-thumb)가 고른 칸으로 옮겨 간다.
+ * 칸 수와 고른 칸의 순서는 Segmented가 --count, --index로 넘긴다. 아무것도 고르지 않았으면 덩어리를 감춘다.
+ */
+.segmented.sliding {
+  position: relative;
+  isolation: isolate;
+}
+
+.segmented-thumb {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% / var(--count));
+  background: var(--fg);
+  transform: translateX(calc(100% * var(--index)));
+  transition:
+    transform 200ms ease,
+    opacity 150ms ease;
+}
+
+.segmented-thumb.empty {
+  opacity: 0;
+}
+
+.temporary .segmented-thumb {
+  background: var(--temp);
+}
+
+.segmented.sliding button {
+  transition: color 150ms ease;
+}
+
+.segmented.sliding button[aria-pressed='true'] {
+  background: transparent;
+}
+
+/* 칸 사이 줄이 덩어리 위에 비치지 않게 */
+.segmented.sliding button[aria-pressed='true'],
+.segmented.sliding button[aria-pressed='true'] + button {
+  border-left-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segmented-thumb,
+  .segmented.sliding button {
+    transition: none;
+  }
+}
+
+/* 탭으로 여는 페이지(차단 목록, 첫 사용 안내)의 맨 위 줄: 로고, 이름, 페이지 제목. 탭 너비를 다 쓴다 */
+.page-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.page-bar .wordmark {
+  font-weight: 600;
+}
+
+.page-bar h1 {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* 이름표가 붙은 설정 칸. 팝업과 첫 사용 안내가 같이 쓴다 */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* "기간" 줄. 직접 입력을 고르면 오른쪽 끝에 숫자와 단위가 붙는다 */
+.field-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-duration {
+  display: flex;
+  gap: 4px;
+}
+
+.custom-duration input,
+.custom-duration select {
+  height: 26px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.custom-duration input {
+  width: 64px;
+}
+
+/* 켜고 끄는 설정 한 줄. 스위치는 role="switch"인 체크박스를 그린다 */
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+}
+
+.switch-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switch-label {
+  font-weight: 600;
+}
+
+.switch input {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 10px;
+  background: var(--track-off);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.switch input::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--thumb-off);
+  transition:
+    left 120ms ease,
+    background 120ms ease;
+}
+
+.switch input:checked {
+  background: var(--fg);
+}
+
+.switch input:checked::before {
+  left: 18px;
+  background: var(--bg);
+}
+
+.switch:has(input:disabled) {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.switch input:disabled {
+  cursor: default;
 }
 
 /* 동기화 한도 안내처럼 알아 둬야 할 한 줄. 팝업과 차단 목록 페이지가 같이 쓴다 */

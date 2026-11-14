@@ -84,7 +84,7 @@ export async function createPanel(ctx: ContentScriptContext, handlers: Handlers)
     if (collapsed) return;
 
     if (rows.length === 0) {
-      root.append(el('p', '이 페이지에서 읽은 댓글이 없어요. 댓글까지 스크롤해 보세요.', 'empty'));
+      root.append(el('p', '이 페이지에서 읽은 댓글 없음. 댓글이 보일 때까지 스크롤', 'empty'));
       return;
     }
     const list = el('ul');

@@ -14,7 +14,7 @@ export default function App() {
 
   return (
     <>
-      <header className="bar">
+      <header className="page-bar">
         <Logo />
         <span className="wordmark mono">CleanTube</span>
         <span className="muted" aria-hidden="true">
@@ -30,13 +30,13 @@ export default function App() {
           {syncWarning && (
             <p className="notice">
               {syncWarning.kind === 'over'
-                ? `동기화 공간이 모자라 오래전에 차단한 ${syncWarning.unsynced}명은 다른 PC로 가지 않아요. 이 PC에서는 그대로 가려져요.`
-                : `동기화 공간의 ${syncWarning.percent}%를 쓰고 있어요. 다 차면 오래전에 차단한 작성자부터 다른 PC로 가지 않아요.`}
+                ? `동기화 공간 부족. 오래전에 차단한 ${syncWarning.unsynced}명은 다른 PC와 동기화 안 됨. 이 PC에서는 그대로 가림`
+                : `동기화 공간 ${syncWarning.percent}% 사용 중. 다 차면 오래전에 차단한 작성자부터 동기화에서 빠짐`}
             </p>
           )}
           <BlockList entries={blocked} onAdd={add} onRemove={remove} />
           <p className="muted">
-            유튜브 댓글에 마우스를 올리면 나오는 버튼으로도 차단할 수 있어요. 임시 차단은 거기서만 돼요.
+            유튜브 댓글에 마우스를 올리면 나오는 버튼으로도 차단 가능. 임시 차단은 거기서만 가능
           </p>
         </main>
       )}

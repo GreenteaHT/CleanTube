@@ -173,6 +173,7 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
           <Segmented
             label={`${title} 정렬`}
             className="tabs"
+            sliding={false}
             options={orders.map((o) => ({ value: o, label: SORT_LABELS[o] }))}
             value={order}
             onChange={(next) => {
@@ -185,7 +186,7 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
       </div>
 
       {entries.length === 0 ? (
-        <p className="empty">{query ? '찾는 작성자가 없어요.' : '아직 없어요.'}</p>
+        <p className="empty">{query ? '찾는 작성자 없음' : '아직 없음'}</p>
       ) : (
         <>
           {/* 칸 이름은 눈으로 보는 표의 머리글이다. 스크린 리더는 줄마다 단추 이름으로 누구인지 듣는다 */}
@@ -317,7 +318,7 @@ function Details({ entry }: { entry: BlockEntry }) {
         </dd>
       )}
       {/* 경위는 동기화하지 않아서 다른 PC에서 차단한 항목에도 없다 */}
-      {!source && <dd className="wide muted">어느 댓글에서 차단했는지는 이 PC에 기록이 없어요.</dd>}
+      {!source && <dd className="wide muted">어느 댓글에서 차단했는지 이 PC에 기록 없음</dd>}
     </dl>
   );
 }

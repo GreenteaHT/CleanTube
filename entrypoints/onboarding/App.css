@@ -1,0 +1,467 @@
+/* 첫 사용 안내 전용. 색과 버튼은 assets/base.css, 예시 댓글의 가림막은 youtube.content/style.css에 있다. */
+
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 16px 56px;
+}
+
+/* 몇 번째 쪽인지. 숫자와 칸 다섯 */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.progress-steps {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+}
+
+.progress-steps span {
+  height: 3px;
+  background: var(--line);
+  transition: background 200ms ease;
+}
+
+.progress-steps span.done {
+  background: var(--fg);
+}
+
+/*
+ * 쪽을 넘길 때: 지금 쪽이 150ms 동안 사라지고(.leaving, App.tsx의 LEAVE_MS), 다음 쪽이 220ms 동안 살짝 올라오며 나타난다.
+ * 다음 쪽은 key가 바뀌어 새로 만들어지므로 나타나는 애니메이션이 매번 돈다.
+ */
+.step-frame {
+  animation: step-in 220ms ease-out;
+}
+
+.step-frame.leaving {
+  opacity: 0;
+  transition: opacity 150ms ease-in;
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-frame {
+    animation: none;
+  }
+
+  .step-frame.leaving {
+    transition: none;
+  }
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.step p {
+  margin: 0;
+}
+
+.step h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.step h2:focus {
+  outline: none;
+}
+
+.step h2 .kind-mark {
+  width: 10px;
+  height: 10px;
+}
+
+.step .lead {
+  font-size: 14px;
+}
+
+.step .controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 440px;
+  margin-top: 4px;
+}
+
+.step .notes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* 설명이 바뀌어도 아래 예시가 들썩이지 않게 한 줄 자리는 늘 둔다 */
+.step .caption {
+  min-height: 1.4em;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* 끝 쪽의 고른 것 요약 */
+.summary {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 10px 16px;
+  margin: 4px 0 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--strong);
+  border-bottom: 1px solid var(--line);
+}
+
+.summary dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.summary dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* 이전, 다음, 건너뛰기 */
+.step-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.step-nav .skip {
+  margin-right: auto;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--strong);
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+.primary {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--on-fill);
+}
+
+button.primary:hover:not(:disabled),
+a.primary:hover {
+  background: var(--fg);
+  opacity: 0.85;
+}
+
+/*
+ * 예시 댓글. 유튜브 댓글란의 글자 크기와 색을 흉내 낸다. 테마는 유튜브처럼 <html dark>로 받는다.
+ * 차단된 댓글의 가림막은 여기가 아니라 style.css가 그린다.
+ */
+.yt-sample {
+  position: relative;
+  margin-top: 4px;
+  padding: 24px 24px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #ffffff;
+  color: #0f0f0f;
+  font:
+    14px/20px Roboto,
+    Arial,
+    'Malgun Gothic',
+    'Apple SD Gothic Neo',
+    sans-serif;
+}
+
+html[dark] .yt-sample {
+  background: #0f0f0f;
+  color: #f1f1f1;
+}
+
+.yt-sample-tag {
+  position: absolute;
+  top: -9px;
+  left: 12px;
+  padding: 0 6px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--muted);
+}
+
+/* 유튜브와 같은 태그 이름(ytd-…)으로 그려서 기본이 inline이다 */
+.yt-thread,
+.yt-comment {
+  display: block;
+}
+
+.yt-thread {
+  margin-bottom: 16px;
+}
+
+.yt-row {
+  display: flex;
+  gap: 16px;
+}
+
+.yt-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.reply .yt-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+}
+
+.yt-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.yt-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.yt-handle {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.yt-time,
+.yt-actions {
+  font-size: 12px;
+  color: #606060;
+}
+
+html[dark] .yt-time,
+html[dark] .yt-actions {
+  color: #aaaaaa;
+}
+
+.yt-text {
+  margin: 0;
+}
+
+.yt-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.yt-thumb {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.yt-reply-button {
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+/* 답글은 프로필 그림 자리만큼 들여 쓴다 */
+.yt-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0 0 56px;
+}
+
+/* 차단하는 법 그림: 댓글 오른쪽의 우리 버튼과 ⋮, 열린 메뉴 */
+.how {
+  padding-bottom: 120px;
+}
+
+.yt-menu-slot {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+}
+
+.yt-kebab {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  fill: currentColor;
+}
+
+/* menu.css의 메뉴는 화면에 고정(fixed)해 띄우는 것이라 그림 안에 놓이게 바꾼다 */
+.yt-sample .menu {
+  position: absolute;
+  top: 40px;
+  right: 0;
+}
+
+/* base.css의 버튼 높이를 메뉴 항목에는 쓰지 않는다 */
+.yt-sample .menu button {
+  height: auto;
+}
+
+/*
+ * 차단하는 법 장면. 5.5초마다 되풀이한다.
+ * 커서가 아래에서 댓글로 올라오면 버튼이 나타나고(유튜브처럼 댓글에 마우스를 올렸을 때), 커서가 버튼을 누르면 메뉴가 열린다.
+ * 커서 위치는 .yt-sample의 안쪽 여백(24px)과 버튼 둘(36px씩)로 계산했다. 버튼 가운데가 오른쪽에서 78px, 위에서 42px.
+ * 커서 그림의 화살표 끝이 (2, 1)이라 그만큼 뺀다.
+ */
+.how-cursor {
+  position: absolute;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  fill: #0f0f0f;
+  stroke: #ffffff;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  pointer-events: none;
+  animation: how-cursor 5.5s ease-in-out infinite;
+}
+
+html[dark] .how-cursor {
+  fill: #ffffff;
+  stroke: #0f0f0f;
+}
+
+.how [data-cleantube-trigger] {
+  animation: how-trigger 5.5s linear infinite;
+}
+
+.how .menu {
+  transform-origin: top right;
+  animation: how-menu 5.5s ease-out infinite;
+}
+
+@keyframes how-cursor {
+  0% {
+    top: calc(100% - 40px);
+    left: 30%;
+    opacity: 0;
+    transform: scale(1);
+  }
+  6% {
+    opacity: 1;
+  }
+  24%,
+  34% {
+    top: 57px;
+    left: 45%;
+  }
+  50% {
+    top: 41px;
+    left: calc(100% - 80px);
+    transform: scale(1);
+  }
+  54% {
+    transform: scale(0.8);
+  }
+  58% {
+    transform: scale(1);
+  }
+  88% {
+    top: 41px;
+    left: calc(100% - 80px);
+    opacity: 1;
+  }
+  96%,
+  100% {
+    top: 41px;
+    left: calc(100% - 80px);
+    opacity: 0;
+  }
+}
+
+/* 커서가 댓글에 닿으면 나타난다. 유튜브에서 나타나는 것처럼 0.1초쯤에 */
+@keyframes how-trigger {
+  0%,
+  24% {
+    opacity: 0;
+    background: transparent;
+  }
+  26%,
+  53% {
+    opacity: 1;
+    background: transparent;
+  }
+  55%,
+  90% {
+    opacity: 1;
+    background: rgba(128, 128, 128, 0.2);
+  }
+  96%,
+  100% {
+    opacity: 0;
+    background: transparent;
+  }
+}
+
+@keyframes how-menu {
+  0%,
+  55% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  59%,
+  90% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  95%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* 움직임 줄이기: 커서 없이 메뉴가 열린 정지 화면. 버튼은 aria-expanded로 style.css가 보이게 한다 */
+@media (prefers-reduced-motion: reduce) {
+  .how-cursor {
+    display: none;
+  }
+
+  .how [data-cleantube-trigger],
+  .how .menu {
+    animation: none;
+  }
+}
