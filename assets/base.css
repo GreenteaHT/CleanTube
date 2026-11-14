@@ -1,31 +1,55 @@
-/* 팝업과 차단 목록 페이지의 기본 스타일. 색, 글꼴, 버튼, 입력창. */
+/*
+ * 팝업과 차단 목록 페이지의 기본 스타일. 색, 글꼴, 버튼, 입력창, 여러 칸 버튼.
+ * 색은 뜻이 있을 때만 쓴다. 검정(--fg)은 영구 차단, 호박색(--temp)은 임시 차단이다.
+ */
+
+/* 고정폭 글꼴은 숫자와 @핸들·채널 ID에만 쓴다. 한글이 없는 자리라 라틴 글자만 담은 파일을 넣는다 */
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
 
 :root {
   --bg: #ffffff;
-  --fg: #1a1a1a;
-  --muted: #6b6b6b;
-  --border: #dcdcdc;
-  --surface: #f4f4f4;
+  --fg: #121212;
+  --muted: #5c5c5c;
+  /* 칸을 나누는 가는 줄 */
+  --line: #e3e3e3;
+  /* 버튼과 입력창의 테두리 */
+  --strong: #121212;
+  /* 미리보기, 펼친 항목, 안내 상자의 바탕 */
+  --field: #f6f6f6;
+  --temp: #b45309;
+  /* --fg나 --temp로 칠한 바탕 위의 글자 */
+  --on-fill: #ffffff;
+  --track-off: #d4d4d4;
+  --thumb-off: #ffffff;
+
+  --mono: 'IBM Plex Mono', 'Malgun Gothic', 'Apple SD Gothic Neo', monospace;
 
   color-scheme: light dark;
   font-family:
     system-ui,
     -apple-system,
     'Segoe UI',
-    Roboto,
     'Malgun Gothic',
+    'Apple SD Gothic Neo',
     sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1f1f1f;
-    --fg: #f0f0f0;
-    --muted: #a0a0a0;
-    --border: #3a3a3a;
-    --surface: #2a2a2a;
+    --bg: #161616;
+    --fg: #ededed;
+    --muted: #a3a3a3;
+    --line: #2e2e2e;
+    --strong: #8a8a8a;
+    --field: #1f1f1f;
+    --temp: #f59e0b;
+    --on-fill: #161616;
+    --track-off: #4a4a4a;
+    --thumb-off: #a3a3a3;
   }
 }
 
@@ -40,41 +64,67 @@ body {
 }
 
 h1,
-h2 {
+h2,
+h3 {
   margin: 0;
   font-weight: 600;
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
   color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+input:not([type]),
+input[type='text'],
+input[type='search'],
+input[type='number'],
+select {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--strong);
+  border-radius: 3px;
+  background: var(--bg);
 }
 
 input:not([type]),
 input[type='text'] {
   width: 100%;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
 }
 
 button {
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--strong);
+  border-radius: 3px;
+  background: transparent;
   cursor: pointer;
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--fg);
+  background: var(--field);
 }
 
 button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* 버튼 안의 선 아이콘. 글자색을 따라간다 */
+.icon {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .row {
@@ -91,12 +141,64 @@ button:disabled {
   font-size: 12px;
 }
 
+.mono {
+  font-family: var(--mono);
+}
+
+/* 영구 차단(검정)과 임시 차단(호박색) 묶음 제목 앞의 네모 */
+.kind-mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--fg);
+}
+
+.temporary .kind-mark {
+  background: var(--temp);
+}
+
+/*
+ * 여러 칸 중 하나를 고르는 버튼 묶음. 표시 방법, 기간, 정렬.
+ * 고른 칸은 묶음의 색으로 칠한다. 임시 차단 안에서는 호박색.
+ */
+.segmented {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  border: 1px solid var(--strong);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.segmented button {
+  min-width: 0;
+  padding: 0 4px;
+  border: none;
+  border-radius: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--strong);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--fg);
+  color: var(--on-fill);
+}
+
+.temporary .segmented button[aria-pressed='true'] {
+  background: var(--temp);
+}
+
 /* 동기화 한도 안내처럼 알아 둬야 할 한 줄. 팝업과 차단 목록 페이지가 같이 쓴다 */
 .notice {
+  margin: 0;
   padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--field);
   font-size: 12px;
   /* 좁은 팝업에서 "동기화되/지"처럼 단어 가운데서 끊기지 않게 */
   word-break: keep-all;

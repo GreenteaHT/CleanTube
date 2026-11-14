@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Segmented from '@/components/Segmented';
 import { entryKey, isExpired, parseEntry, type BlockEntry } from '@/utils/matcher';
 import './BlockList.css';
 
@@ -59,30 +60,32 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
   return (
     <section className="block-list">
       <div className="list-head">
-        <h2>
-          차단한 작성자 <span className="count">{active.length}</span>
-        </h2>
-        <button
-          type="button"
-          className="add-toggle"
-          aria-expanded={adding}
-          aria-controls="block-list-add"
-          aria-label="작성자 직접 추가"
-          title="작성자 직접 추가"
-          onClick={() => setAdding(!adding)}
-        >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M8 3v10M3 8h10" />
-          </svg>
-        </button>
-        <input
-          type="search"
-          className="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="작성자 검색"
-          aria-label="차단한 작성자 검색"
-        />
+        <p className="total">
+          <span className="num mono">{active.length}</span>
+          <span className="unit">명 차단 중</span>
+        </p>
+        <div className="tools">
+          <input
+            type="search"
+            className="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="작성자 검색"
+            aria-label="차단한 작성자 검색"
+          />
+          <button
+            type="button"
+            className="add-toggle"
+            aria-expanded={adding}
+            aria-controls="block-list-add"
+            onClick={() => setAdding(!adding)}
+          >
+            <svg className="icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M6 1.5v9M1.5 6h9" />
+            </svg>
+            직접 추가
+          </button>
+        </div>
       </div>
 
       {/* 접혀 있을 때는 탭으로도 들어가지 못하게 inert */}
@@ -110,12 +113,14 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
 
       <Group
         title="영구 차단"
+        temporary={false}
         orders={PERMANENT_ORDERS}
         entries={found.filter((e) => e.until === undefined)}
         {...group}
       />
       <Group
         title="임시 차단"
+        temporary
         orders={TEMPORARY_ORDERS}
         entries={found.filter((e) => e.until !== undefined)}
         {...group}
@@ -126,6 +131,8 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
 
 interface GroupProps {
   title: string;
+  /** 임시 차단 묶음이면 풀리는 때 칸이 붙고 호박색으로 칠한다. */
+  temporary: boolean;
   orders: SortOrder[];
   /** 이 묶음에서 보여 줄 항목. 검색 중이면 걸린 것만 온다. */
   entries: BlockEntry[];
@@ -137,7 +144,7 @@ interface GroupProps {
 }
 
 /** 영구 차단이나 임시 차단 한 묶음. 정렬과 쪽은 묶음마다 따로이고 저장하지 않는다. */
-function Group({ title, orders, entries, query, openKey, onToggle, onRemove }: GroupProps) {
+function Group({ title, temporary, orders, entries, query, openKey, onToggle, onRemove }: GroupProps) {
   const [order, setOrder] = useState<SortOrder>('recent');
   // 보던 쪽은 그때의 검색어와 같이 기억한다. 검색어가 바뀌면 결과가 달라지므로 첫 쪽부터 다시 본다.
   const [page, setPage] = useState({ query, index: 0 });
@@ -155,84 +162,94 @@ function Group({ title, orders, entries, query, openKey, onToggle, onRemove }: G
   };
 
   return (
-    <section className="group">
+    <section className={temporary ? 'group temporary' : 'group'}>
       <div className="group-head" ref={headRef}>
-        <h3>
-          {title} <span className="count">{entries.length}</span>
-        </h3>
+        <h2>
+          <span className="kind-mark" />
+          {title} <span className="count mono">{entries.length}</span>
+        </h2>
         {/* 하나뿐이면 정렬할 게 없다 */}
         {entries.length > 1 && (
-          <select
+          <Segmented
+            label={`${title} 정렬`}
+            className="tabs"
+            options={orders.map((o) => ({ value: o, label: SORT_LABELS[o] }))}
             value={order}
-            aria-label={`${title} 정렬`}
-            onChange={(e) => {
-              setOrder(e.target.value as SortOrder);
+            onChange={(next) => {
+              setOrder(next);
               // 순서가 바뀌면 보던 쪽은 뜻이 없다
               setPage({ query, index: 0 });
             }}
-          >
-            {orders.map((o) => (
-              <option key={o} value={o}>
-                {SORT_LABELS[o]}
-              </option>
-            ))}
-          </select>
+          />
         )}
       </div>
 
       {entries.length === 0 ? (
         <p className="empty">{query ? '찾는 작성자가 없어요.' : '아직 없어요.'}</p>
       ) : (
-        <ul>
-          {visible.map((entry) => {
-            const key = entryKey(entry);
-            const name = displayName(entry);
-            const detail = describe(entry);
-            const open = openKey === key;
-            // 이 기록이 생기기 전에 만든 항목은 펼쳐 볼 게 없다
-            const hasDetails = entry.at !== undefined || entry.source !== undefined;
-            return (
-              <li key={key}>
-                <div className="summary">
-                  <div className="who">
-                    <span className="name">{name}</span>
-                    {detail && <span className="detail">{detail}</span>}
+        <>
+          {/* 칸 이름은 눈으로 보는 표의 머리글이다. 스크린 리더는 줄마다 단추 이름으로 누구인지 듣는다 */}
+          <div className="columns" aria-hidden="true">
+            <span>작성자</span>
+            {temporary && <span>풀리는 때</span>}
+            <span>채널 ID</span>
+          </div>
+          <ul>
+            {visible.map((entry) => {
+              const key = entryKey(entry);
+              const name = displayName(entry);
+              const open = openKey === key;
+              // 이 기록이 생기기 전에 만든 항목은 펼쳐 볼 게 없다
+              const hasDetails = entry.at !== undefined || entry.source !== undefined;
+              return (
+                <li key={key} className={open ? 'open' : undefined}>
+                  <div className="summary">
+                    <span className="name mono">{name}</span>
+                    {entry.until !== undefined && <span className="until mono">{formatTime(entry.until)}</span>}
+                    {/* 핸들이 이름 자리에 나갔으면 채널 ID를 같이 보여 어느 쪽으로 매칭되는지 알게 한다 */}
+                    <span className="channel mono">{entry.handle ? entry.channelId : undefined}</span>
+                    <span className="actions">
+                      {hasDetails && (
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-label={`${name} 차단한 경위 ${open ? '접기' : '보기'}`}
+                          onClick={() => onToggle(open ? null : key)}
+                        >
+                          <svg className="icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                            <path d={open ? 'M2.5 7.5L6 4l3.5 3.5' : 'M2.5 4.5L6 8l3.5-3.5'} />
+                          </svg>
+                        </button>
+                      )}
+                      <button type="button" onClick={() => onRemove(entry)} aria-label={`${name} 차단 해제`}>
+                        <svg className="icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                          <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
+                        </svg>
+                      </button>
+                    </span>
                   </div>
-                  {hasDetails && (
-                    <button
-                      type="button"
-                      aria-expanded={open}
-                      aria-label={`${name} 차단한 경위 ${open ? '접기' : '보기'}`}
-                      onClick={() => onToggle(open ? null : key)}
-                    >
-                      {open ? '▴' : '▾'}
-                    </button>
-                  )}
-                  <button type="button" onClick={() => onRemove(entry)} aria-label={`${name} 차단 해제`}>
-                    ×
-                  </button>
-                </div>
-                {open && <Details entry={entry} />}
-              </li>
-            );
-          })}
-        </ul>
+                  {open && <Details entry={entry} />}
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
       {pageCount > 1 && (
-        <nav className="pager" aria-label={`${title} 쪽 넘기기`}>
+        <nav className="pager mono" aria-label={`${title} 쪽 넘기기`}>
           <button type="button" disabled={current === 0} onClick={() => turnTo(current - 1)}>
-            이전
+            ← 이전
           </button>
           <span>
-            {current + 1} / {pageCount}
+            {current + 1}/{pageCount}
           </span>
           <button
             type="button"
             disabled={current === pageCount - 1}
             onClick={() => turnTo(current + 1)}
           >
-            다음
+            다음 →
           </button>
         </nav>
       )}
@@ -303,15 +320,6 @@ function Details({ entry }: { entry: BlockEntry }) {
       {!source && <dd className="wide muted">어느 댓글에서 차단했는지는 이 PC에 기록이 없어요.</dd>}
     </dl>
   );
-}
-
-/** 이름 아래 한 줄. 영구인지 임시인지는 묶음 제목이 말하므로 적지 않는다. 적을 게 없으면 빈 문자열. */
-function describe(entry: BlockEntry): string {
-  const parts: string[] = [];
-  if (entry.until !== undefined) parts.push(`${formatTime(entry.until)}까지`);
-  // 핸들이 이름 자리에 나갔으면 채널 ID를 덧붙여 어느 쪽으로 매칭되는지 보이게 한다
-  if (entry.handle && entry.channelId) parts.push(entry.channelId);
-  return parts.join(' · ');
 }
 
 function formatTime(time: number, withYear = false): string {

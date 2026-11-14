@@ -1,83 +1,208 @@
+/*
+ * 팝업 전용. 색과 여러 칸 버튼은 assets/base.css에 있다.
+ * 크롬 팝업은 높이가 600px까지다. 한도 안내가 없을 때 그 안에 다 들어가게 간격을 잡았다.
+ */
+
 .popup {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 300px;
-  padding: 14px;
+  width: 360px;
 }
 
-.popup h1 {
-  font-size: 16px;
+.popup.loading {
+  padding: 16px;
 }
 
 .popup p {
   margin: 0;
 }
 
-.popup .toggle {
+/* 맨 위 줄: 로고와 이름 */
+.popup .bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
+  height: 40px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
 }
 
-/* 토글 바로 아래 설명은 토글에 붙여 보이게 */
-.popup .toggle + .muted {
-  margin-top: -8px;
+.popup .wordmark {
+  font-weight: 600;
 }
 
 /* 차단한 수와 차단 목록 페이지를 여는 버튼 */
-.popup .blocked {
+.popup .total {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.popup .count {
+  display: flex;
+  align-items: baseline;
   gap: 8px;
 }
 
-.popup .blocked h2 {
-  font-size: 14px;
+.popup .count .num {
+  font-size: 44px;
+  line-height: 44px;
+  font-weight: 500;
+  letter-spacing: -2px;
 }
 
-.popup .blocked .count {
-  margin-left: 4px;
-  font-size: 12px;
-  font-weight: 400;
+.popup .count .unit {
   color: var(--muted);
+}
+
+.popup .open-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.popup .notice {
+  margin: 12px 16px 0;
 }
 
 /* 영구 차단, 임시 차단 설정 묶음 */
 .popup .kind {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
 }
 
 .popup .kind h2 {
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
 }
 
 .popup .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.popup .segmented button {
+  height: 30px;
+}
+
+.popup .field-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* 고른 표시 방법의 미리보기 한 줄 */
+.popup .preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--field);
+  font-size: 12px;
+}
+
+.popup .preview .blurred {
+  filter: blur(2.5px);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* 유튜브 화면의 "숨긴 항목 보기" pill을 닮게 */
+.popup .preview .pill {
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--line);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* "기간" 줄. 직접 입력을 고르면 오른쪽 끝에 숫자와 단위가 붙는다 */
+.popup .field-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
 }
 
-.popup select,
-.popup input[type='number'] {
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: inherit;
-  font: inherit;
+.popup .custom-duration {
+  display: flex;
+  gap: 4px;
 }
 
-/* 기간 직접 입력: 숫자와 단위를 오른쪽에 붙여 놓는다 */
-.popup .custom-duration {
-  justify-content: flex-end;
+.popup .custom-duration input,
+.popup .custom-duration select {
+  height: 26px;
+  padding: 0 6px;
+  font-size: 12px;
 }
 
 .popup .custom-duration input {
-  width: 80px;
+  width: 64px;
+}
+
+/* 켜고 끄는 설정. 줄 전체를 눌러도 바뀐다 */
+.popup .switch {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+
+.popup .switch-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popup .switch-label {
+  font-weight: 600;
+}
+
+.popup .switch input {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 10px;
+  background: var(--track-off);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.popup .switch input::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--thumb-off);
+  transition:
+    left 120ms ease,
+    background 120ms ease;
+}
+
+.popup .switch input:checked {
+  background: var(--fg);
+}
+
+.popup .switch input:checked::before {
+  left: 18px;
+  background: var(--bg);
 }

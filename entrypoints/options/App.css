@@ -1,17 +1,38 @@
+/* 맨 위 줄: 로고, 이름, 페이지 제목. 탭 너비를 다 쓴다 */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.bar .wordmark {
+  font-weight: 600;
+}
+
+.bar h1 {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
 /* 탭 전체를 쓰지만 줄이 너무 길어지지 않게 가운데 한 단으로 */
 .page {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 640px;
+  gap: 16px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 28px 16px 56px;
 }
 
-.page h1 {
-  font-size: 18px;
-}
-
-.page p {
+.page > p {
   margin: 0;
+}
+
+/* 목록 끝의 안내는 목록과 조금 떨어뜨린다 */
+.page > .block-list + .muted {
+  margin-top: 12px;
 }
