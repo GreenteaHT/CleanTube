@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { browser } from '#imports';
 import DurationField from '@/components/DurationField';
 import Logo from '@/components/Logo';
@@ -9,11 +9,10 @@ import { useSettings } from '@/hooks/useSettings';
 import { formatDuration } from '@/utils/duration';
 import type { DisplayMode, Settings, SettingsPatch } from '@/utils/settings';
 import CommentSample, { Comment, type SampleComment } from './CommentSample';
+import { enter, leave, playHowTo, prefersReducedMotion, usePrefersReducedMotion } from './motion';
 import './App.css';
 
 const STEP_COUNT = 4;
-/** 쪽을 넘길 때 지금 쪽이 사라지는 시간. App.css의 .step-frame.leaving과 맞춘다. */
-const LEAVE_MS = 150;
 
 // 예시 댓글. 실제 사람과 상관없는 지어낸 것이다. 사람이 쓴 댓글을 흉내 낸 것이라 UI 말투(명사형)를 따르지 않는다.
 const BEFORE: SampleComment = {
@@ -57,8 +56,10 @@ export default function App() {
   const { settings, update } = useSettings();
   const dark = usePrefersDark();
   const [step, setStep] = useState(0);
-  // 쪽을 넘길 때 지금 쪽이 사라지는 중인지. 다 사라지면 다음 쪽이 나타난다.
-  const [leaving, setLeaving] = useState(false);
+  // 지금 쪽이 담긴 요소. 쪽을 넘길 때 이것이 사라지고, 다음 쪽의 새 요소가 나타난다.
+  const frameRef = useRef<HTMLDivElement>(null);
+  // 지금 쪽이 사라지는 중이면 참. 그동안 또 누른 것은 무시한다.
+  const turning = useRef(false);
   // 이 안내에서 고른 표시 방법. 저장된 설정과 달리 처음에는 아무것도 고르지 않은 상태로 시작한다.
   // 고르는 순간 예시 댓글이 실제로 차단될 때처럼 움직이게 하려는 것이다. 고르지 않고 넘어가면 저장된 설정이 그대로 남는다.
   const [chosen, setChosen] = useState<Record<'permanent' | 'temporary', DisplayMode | null>>({
@@ -73,18 +74,19 @@ export default function App() {
     if (turned.current) headingRef.current?.focus();
   }, [step]);
 
-  const go = (next: number) => {
-    if (leaving) return;
+  useLayoutEffect(() => {
+    // 새 쪽이 화면에 그려지기 전에 나타나는 움직임을 건다. 처음 열 때는 움직이지 않는다.
+    if (turned.current && !prefersReducedMotion() && frameRef.current) enter(frameRef.current);
+  }, [step]);
+
+  const go = async (next: number) => {
+    if (turning.current) return;
+    turning.current = true;
     turned.current = true;
-    const show = () => {
-      setStep(next);
-      setLeaving(false);
-      window.scrollTo({ top: 0 });
-    };
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return show();
-    // App.css의 .step-frame.leaving과 같은 길이. 사라진 뒤에 바꾼다
-    setLeaving(true);
-    setTimeout(show, LEAVE_MS);
+    if (!prefersReducedMotion() && frameRef.current) await leave(frameRef.current);
+    setStep(next);
+    window.scrollTo({ top: 0 });
+    turning.current = false;
   };
 
   const choose = (kind: 'permanent' | 'temporary', mode: DisplayMode) => {
@@ -122,8 +124,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* key가 바뀌면 새로 만들어져 나타나는 애니메이션이 다시 돈다 */}
-          <div key={step} className={leaving ? 'step-frame leaving' : 'step-frame'}>
+          {/* 쪽마다 새 요소로 만든다. 사라지게 붙잡아 둔 이전 쪽의 상태를 들고 오지 않게 */}
+          <div key={step} ref={frameRef} className="step-frame">
           {step === 0 && (
             <section className="step">
               <h2 ref={headingRef} tabIndex={-1}>
@@ -202,12 +204,12 @@ export default function App() {
               </button>
             )}
             {step > 0 && (
-              <button type="button" onClick={() => go(step - 1)}>
+              <button type="button" onClick={() => void go(step - 1)}>
                 이전
               </button>
             )}
             {step < STEP_COUNT - 1 ? (
-              <button type="button" className="primary" onClick={() => go(step + 1)}>
+              <button type="button" className="primary" onClick={() => void go(step + 1)}>
                 다음
               </button>
             ) : (
@@ -223,13 +225,21 @@ export default function App() {
 }
 
 /**
- * 댓글에 커서가 다가가면 CleanTube 버튼이 나타나고, 버튼을 누르면 메뉴가 열리는 장면. 몇 초마다 되풀이한다. 움직임은 App.css의 how-* keyframes.
- * 움직임 줄이기를 켠 사람에게는 메뉴가 열린 정지 화면을 보인다(aria-expanded로 style.css가 버튼을 보이게 한다).
+ * 댓글에 커서가 다가가면 CleanTube 버튼이 나타나고, 버튼을 누르면 메뉴가 열리는 장면. 몇 초마다 되풀이한다. 움직임은 motion.ts의 playHowTo.
+ * 움직임 줄이기를 켠 사람에게는 메뉴가 열린 정지 화면을 보인다(aria-expanded로 style.css가 버튼을 보이게 하고, 커서는 CSS가 감춘다).
  * 설명은 위 글이 하므로 그림은 스크린 리더와 탭 이동에서 뺀다.
  */
 function HowToBlock({ dark, durationMs }: { dark: boolean; durationMs: number }) {
+  const sceneRef = useRef<HTMLElement>(null);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useLayoutEffect(() => {
+    if (reducedMotion || !sceneRef.current) return;
+    return playHowTo(sceneRef.current);
+  }, [reducedMotion]);
+
   return (
-    <section className="yt-sample how" aria-hidden="true" inert>
+    <section ref={sceneRef} className="yt-sample how" aria-hidden="true" inert>
       <span className="yt-sample-tag">예시</span>
       <div className="yt-thread">
         <Comment
@@ -258,7 +268,7 @@ function HowToBlock({ dark, durationMs }: { dark: boolean; durationMs: number })
           }
         />
       </div>
-      {/* 화살표 끝이 (2, 1)에 있다. App.css가 그만큼 당겨 끝이 가리키는 곳에 오게 한다 */}
+      {/* 화살표 끝이 (2, 1)에 있다. motion.ts가 그만큼 당겨 끝이 가리키는 곳에 오게 한다 */}
       <svg className="how-cursor" viewBox="0 0 20 20">
         <path d="M2 1v15l4-4 3 7 2.2-1-3-6.8h5.8z" />
       </svg>

@@ -273,11 +273,11 @@ chrome.storage.sync blocked.00 ~ blocked.31
   - 버튼은 `runtime.openOptionsPage()`를 부른다. 차단 목록 페이지가 이미 열려 있으면 새 탭을 만들지 않고 그 탭으로 간다.
   - 동기화 한도 안내가 있으면 그 아래에 한 줄. "오래전에 차단한 n명은 다른 PC와 동기화 안 됨" 또는 "동기화 공간 n% 사용 중"
 - `entrypoints/onboarding/App.tsx` 첫 사용 안내. 네 쪽을 이전·다음으로 넘긴다. ① 차단하는 법(장면) ② 영구 차단 표시 방법 ③ 임시 차단 기간과 표시 방법 ④ 고른 것 요약과 "유튜브로 가기". 이유는 [decisions.md](decisions.md) "첫 사용 안내".
-  - 1쪽 장면(`HowToBlock`). 가짜 커서가 댓글로 다가가면 CleanTube 버튼이 나타나고, 버튼을 누르면 메뉴가 열린다. 5.5초마다 되풀이한다. 움직임은 `App.css`의 `how-cursor`, `how-trigger`, `how-menu` keyframes이고, 커서가 갈 자리는 예시의 여백과 버튼 크기로 계산해 적었다. 움직임 줄이기(`prefers-reduced-motion`)면 장면 없이 메뉴가 열린 정지 화면이다. 그림 전체가 `aria-hidden`이고 `inert`다.
+  - 1쪽 장면(`HowToBlock`). 가짜 커서가 댓글로 다가가면 CleanTube 버튼이 나타나고, 버튼을 누르면 메뉴가 열린다. 5.5초마다 되풀이한다. 움직임은 `motion.ts`의 `playHowTo`가 Web Animations API로 건다(`id`가 `how-cursor`, `how-trigger`, `how-menu`). 커서가 갈 자리는 걸 때마다 실제 댓글 글과 버튼의 위치를 재서 정하고, 장면 크기가 바뀌면(`ResizeObserver`) 다시 재서 하던 데서 이어 간다. 움직임 줄이기(`prefers-reduced-motion`)면 장면을 걸지 않아 메뉴가 열린 정지 화면이고, 설정이 바뀌면 바로 멈추거나 다시 돈다. 그림 전체가 `aria-hidden`이고 `inert`다.
   - 2·3쪽(`ModeStep`)의 표시 방법은 아무 칸도 고르지 않은 상태로 시작한다. 이 안내에서 고른 것은 `App`의 `chosen`에 따로 들고, 고르면 설정에도 저장한다. 고르지 않고 넘어가면 저장된 설정이 그대로 남는다. 이전 쪽으로 돌아가면 고른 칸과 그 모습이 그대로다.
   - 같은 쪽에 "답글도 함께 가리기" 스위치가 있다. 설정은 하나라 두 쪽의 스위치가 같은 값이다. 스위치는 늘 자리에 있고, 아직 안 골랐거나 완전히 숨기기면 꺼 둔다(`disabled`). 자리가 생겼다 없어지면 아래 예시가 들썩여서다. 설명 한 줄도 늘 한 줄 자리를 둔다.
   - 고른 값은 `useSettings`로 바로 저장한다. "건너뛰기"는 `tabs.getCurrent`와 `tabs.remove`로 이 탭을 닫는다. 끝 쪽에는 없다.
-  - 쪽을 넘기면 지금 쪽이 150ms 동안 사라지고(`LEAVE_MS`, `.step-frame.leaving`) 다음 쪽이 220ms 동안 살짝 올라오며 나타난다(`step-in`). 다음 쪽은 `key`가 바뀌어 새로 만들어진다. 움직임 줄이기면 바로 바뀐다. 새 쪽의 제목(`tabIndex=-1`)에 포커스를 옮긴다. 처음 열 때는 옮기지 않는다.
+  - 쪽을 넘기면 지금 쪽이 150ms 동안 사라지고(`motion.ts`의 `leave`) 다음 쪽이 220ms 동안 살짝 올라오며 나타난다(`enter`). 둘 다 Web Animations API라 시간은 `motion.ts`에만 있고, 사라지기가 끝나는 것을 기다렸다가 쪽을 바꾼다. 다음 쪽은 `key`가 바뀌어 새로 만들어진다. 움직임 줄이기면 바로 바뀐다. 누른 순간에 설정을 읽는다. 새 쪽의 제목(`tabIndex=-1`)에 포커스를 옮긴다. 처음 열 때는 옮기지 않는다.
   - `CommentSample.tsx` 유튜브 댓글란을 흉내 낸 예시. 유튜브와 같은 태그 이름(`ytd-comment-thread-renderer`, `ytd-comment-view-model`, `ytd-comment-replies-renderer`)으로 그리고, 가리는 일은 콘텐츠 스크립트의 `applyDisplay`가 한다. 그래서 고르거나 바꾸면 유튜브에서 차단할 때와 같은 애니메이션으로 접히고 흐려지고 바뀌며, "숨긴 항목 보기"도 같은 코드로 열린다. 처음 그릴 때(돌아왔을 때)만 움직이지 않고 바로 맞춘다. 가운데 스레드에 답글 둘이 달려 있다.
     - 처음 그릴 때의 높이를 `min-height`로 붙잡는다. 아무것도 가리지 않은 처음이 가장 길어서, 댓글이 접혀도 예시 상자와 아래 단추가 움직이지 않는다. "숨긴 항목 보기"로 연 문구 한 줄만큼은 늘어난다.
     - `display.ts`가 넣는 가림막과 속성은 React가 모르는 DOM이다. 이 요소들의 React 자식은 바뀌지 않아서 서로 부딪치지 않는다.

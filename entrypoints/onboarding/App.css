@@ -33,36 +33,6 @@
   background: var(--fg);
 }
 
-/*
- * 쪽을 넘길 때: 지금 쪽이 150ms 동안 사라지고(.leaving, App.tsx의 LEAVE_MS), 다음 쪽이 220ms 동안 살짝 올라오며 나타난다.
- * 다음 쪽은 key가 바뀌어 새로 만들어지므로 나타나는 애니메이션이 매번 돈다.
- */
-.step-frame {
-  animation: step-in 220ms ease-out;
-}
-
-.step-frame.leaving {
-  opacity: 0;
-  transition: opacity 150ms ease-in;
-}
-
-@keyframes step-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .step-frame {
-    animation: none;
-  }
-
-  .step-frame.leaving {
-    transition: none;
-  }
-}
-
 .step {
   display: flex;
   flex-direction: column;
@@ -341,22 +311,23 @@ html[dark] .yt-actions {
 }
 
 /*
- * 차단하는 법 장면. 5.5초마다 되풀이한다.
- * 커서가 아래에서 댓글로 올라오면 버튼이 나타나고(유튜브처럼 댓글에 마우스를 올렸을 때), 커서가 버튼을 누르면 메뉴가 열린다.
- * 커서 위치는 .yt-sample의 안쪽 여백(24px)과 버튼 둘(36px씩)로 계산했다. 버튼 가운데가 오른쪽에서 78px, 위에서 42px.
- * 커서 그림의 화살표 끝이 (2, 1)이라 그만큼 뺀다.
+ * 차단하는 법 장면의 커서. 움직임은 motion.ts의 playHowTo가 실제 버튼 위치를 재서 건다.
+ * 누를 때 화살표 끝(2, 1)을 중심으로 줄어든다. 움직임이 걸리기 전에는 보이지 않는다.
  */
 .how-cursor {
   position: absolute;
   z-index: 2;
+  top: 0;
+  left: 0;
   width: 20px;
   height: 20px;
   fill: #0f0f0f;
   stroke: #ffffff;
   stroke-width: 1.2;
   stroke-linejoin: round;
+  opacity: 0;
+  transform-origin: 2px 1px;
   pointer-events: none;
-  animation: how-cursor 5.5s ease-in-out infinite;
 }
 
 html[dark] .how-cursor {
@@ -364,104 +335,13 @@ html[dark] .how-cursor {
   stroke: #0f0f0f;
 }
 
-.how [data-cleantube-trigger] {
-  animation: how-trigger 5.5s linear infinite;
-}
-
 .how .menu {
   transform-origin: top right;
-  animation: how-menu 5.5s ease-out infinite;
-}
-
-@keyframes how-cursor {
-  0% {
-    top: calc(100% - 40px);
-    left: 30%;
-    opacity: 0;
-    transform: scale(1);
-  }
-  6% {
-    opacity: 1;
-  }
-  24%,
-  34% {
-    top: 57px;
-    left: 45%;
-  }
-  50% {
-    top: 41px;
-    left: calc(100% - 80px);
-    transform: scale(1);
-  }
-  54% {
-    transform: scale(0.8);
-  }
-  58% {
-    transform: scale(1);
-  }
-  88% {
-    top: 41px;
-    left: calc(100% - 80px);
-    opacity: 1;
-  }
-  96%,
-  100% {
-    top: 41px;
-    left: calc(100% - 80px);
-    opacity: 0;
-  }
-}
-
-/* 커서가 댓글에 닿으면 나타난다. 유튜브에서 나타나는 것처럼 0.1초쯤에 */
-@keyframes how-trigger {
-  0%,
-  24% {
-    opacity: 0;
-    background: transparent;
-  }
-  26%,
-  53% {
-    opacity: 1;
-    background: transparent;
-  }
-  55%,
-  90% {
-    opacity: 1;
-    background: rgba(128, 128, 128, 0.2);
-  }
-  96%,
-  100% {
-    opacity: 0;
-    background: transparent;
-  }
-}
-
-@keyframes how-menu {
-  0%,
-  55% {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  59%,
-  90% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  95%,
-  100% {
-    opacity: 0;
-    transform: scale(1);
-  }
 }
 
 /* 움직임 줄이기: 커서 없이 메뉴가 열린 정지 화면. 버튼은 aria-expanded로 style.css가 보이게 한다 */
 @media (prefers-reduced-motion: reduce) {
   .how-cursor {
     display: none;
-  }
-
-  .how [data-cleantube-trigger],
-  .how .menu {
-    animation: none;
   }
 }
