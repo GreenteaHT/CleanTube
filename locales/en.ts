@@ -92,6 +92,8 @@ export const en = {
     showDetails: (name: string) => `Show why ${name} was blocked`,
     hideDetails: (name: string) => `Hide why ${name} was blocked`,
     unblock: (name: string) => `Unblock ${name}`,
+    /** 차단 목록에서 지운 뒤 화면 읽기 프로그램에 알리는 글. 화면에는 보이지 않는다 */
+    unblocked: (name: string) => `${name} unblocked`,
     details: {
       at: 'Blocked',
       video: 'Video',

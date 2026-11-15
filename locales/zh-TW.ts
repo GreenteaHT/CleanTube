@@ -72,6 +72,7 @@ export const zhTW = {
     showDetails: (name: string) => `查看封鎖 ${name} 的原因`,
     hideDetails: (name: string) => `收合封鎖 ${name} 的原因`,
     unblock: (name: string) => `解除封鎖 ${name}`,
+    unblocked: (name: string) => `已解除封鎖 ${name}`,
     details: {
       at: '封鎖時間',
       video: '影片',

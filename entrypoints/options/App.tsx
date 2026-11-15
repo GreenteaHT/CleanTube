@@ -43,12 +43,14 @@ export default function App() {
     history.replaceState(null, '', next === 'language' ? '#language' : location.pathname);
   };
 
-  // 탭 사이는 화살표로 옮긴다(WAI-ARIA 탭 패턴). Tab 키는 탭 묶음에서 바로 내용으로 간다.
+  // 탭 사이는 화살표로, 처음과 끝은 Home·End로 옮긴다(WAI-ARIA 탭 패턴). Tab 키는 탭 묶음에서 바로 내용으로 간다.
   const onTabKey = (e: KeyboardEvent) => {
-    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-    if (!step) return;
+    const at = TABS.indexOf(tab);
+    const index =
+      e.key === 'ArrowRight' ? at + 1 : e.key === 'ArrowLeft' ? at - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? -1 : null;
+    if (index === null) return;
     e.preventDefault();
-    const next = TABS[(TABS.indexOf(tab) + step + TABS.length) % TABS.length] ?? 'blockList';
+    const next = TABS.at(index % TABS.length) ?? 'blockList';
     select(next);
     tabRefs.current[next]?.focus();
   };
@@ -76,7 +78,8 @@ export default function App() {
               role="tab"
               id={`tab-${id}`}
               aria-selected={tab === id}
-              aria-controls={`panel-${id}`}
+              // 고른 탭의 내용만 그린다. 그리지 않은 패널을 가리키면 일부 화면 읽기 프로그램이 없는 대상으로 다룬다
+              aria-controls={tab === id ? `panel-${id}` : undefined}
               tabIndex={tab === id ? 0 : -1}
               onClick={() => select(id)}
             >

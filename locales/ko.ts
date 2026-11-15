@@ -74,6 +74,7 @@ export const ko = {
     showDetails: (name: string) => `${name} 차단한 경위 보기`,
     hideDetails: (name: string) => `${name} 차단한 경위 접기`,
     unblock: (name: string) => `${name} 차단 해제`,
+    unblocked: (name: string) => `${name} 차단 해제됨`,
     details: {
       at: '차단한 때',
       video: '영상',

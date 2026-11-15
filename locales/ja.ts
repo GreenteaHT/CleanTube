@@ -72,6 +72,7 @@ export const ja = {
     showDetails: (name: string) => `${name}をブロックした経緯を表示`,
     hideDetails: (name: string) => `${name}をブロックした経緯を閉じる`,
     unblock: (name: string) => `${name}のブロックを解除`,
+    unblocked: (name: string) => `${name}のブロック解除済み`,
     details: {
       at: 'ブロック日時',
       video: '動画',

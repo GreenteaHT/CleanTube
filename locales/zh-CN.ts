@@ -72,6 +72,7 @@ export const zhCN = {
     showDetails: (name: string) => `查看屏蔽 ${name} 的原因`,
     hideDetails: (name: string) => `收起屏蔽 ${name} 的原因`,
     unblock: (name: string) => `解除屏蔽 ${name}`,
+    unblocked: (name: string) => `已解除屏蔽 ${name}`,
     details: {
       at: '屏蔽时间',
       video: '视频',

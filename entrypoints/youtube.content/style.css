@@ -86,6 +86,15 @@ html[dark] [data-cleantube-overlay] button {
   background: rgba(128, 128, 128, 0.35);
 }
 
+/*
+ * 키보드로 왔을 때의 포커스 테두리. 위의 all:unset이 브라우저의 기본 테두리까지 지워서 다시 그린다.
+ * :focus-visible이라 마우스로 누를 때는 나오지 않는다. 메뉴 버튼도 같다(아래).
+ */
+[data-cleantube-overlay] button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 /* 블러: 내용을 흐리게 하고 누를 수 없게 한다. 가림막은 전체를 덮고, 마우스를 올리면 pill만 보인다. */
 [data-cleantube-cover='blur']:not([data-cleantube-revealed]) > :not([data-cleantube-overlay]) {
   filter: blur(8px);
@@ -190,4 +199,10 @@ button[data-cleantube-trigger][aria-expanded='true'] {
 button[data-cleantube-trigger]:hover,
 button[data-cleantube-trigger][aria-expanded='true'] {
   background: rgba(128, 128, 128, 0.2);
+}
+
+/* 키보드 포커스 테두리. all:unset이 기본 테두리를 지워서 다시 그린다. 둥근 버튼의 안쪽에 그려 옆의 유튜브 ⋮에 겹치지 않게 */
+button[data-cleantube-trigger]:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
 }

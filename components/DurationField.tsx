@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Segmented, { type SegmentedOption } from '@/components/Segmented';
 import { useI18n } from '@/hooks/useI18n';
 import { DAY_MS, HOUR_MS, formatDuration } from '@/utils/duration';
@@ -19,6 +19,17 @@ export default function DurationField(props: { value: number; onChange: (ms: num
   const [custom, setCustom] = useState(!DURATION_PRESETS.includes(props.value));
   const [unit, setUnit] = useState(props.value % DAY_MS === 0 ? DAY_MS : HOUR_MS);
   const [amount, setAmount] = useState(String(props.value / unit));
+  const amountRef = useRef<HTMLInputElement>(null);
+  // "직접"을 눌러 입력칸이 막 나타났는지. 입력칸은 줄 앞쪽("기간" 옆)에 생겨서, 포커스가 버튼에 그대로 있으면
+  // 키보드로는 Tab으로 갈 수 없고 버튼 셋을 거슬러 올라가야 한다. 나타나면 입력칸으로 옮기고 숫자를 골라 둔다.
+  const justOpened = useRef(false);
+
+  useEffect(() => {
+    if (!custom || !justOpened.current) return;
+    justOpened.current = false;
+    amountRef.current?.focus();
+    amountRef.current?.select();
+  }, [custom]);
 
   const commit = (text: string, unitMs: number) => {
     const n = Number(text);
@@ -39,6 +50,7 @@ export default function DurationField(props: { value: number; onChange: (ms: num
         {custom && (
           <div className="custom-duration">
             <input
+              ref={amountRef}
               type="number"
               className="mono"
               min={1}
@@ -77,6 +89,7 @@ export default function DurationField(props: { value: number; onChange: (ms: num
             const current = props.value % DAY_MS === 0 ? DAY_MS : HOUR_MS;
             setUnit(current);
             setAmount(String(props.value / current));
+            justOpened.current = true;
             setCustom(true);
           } else {
             setCustom(false);

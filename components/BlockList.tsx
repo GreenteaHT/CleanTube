@@ -37,7 +37,13 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
   const [search, setSearch] = useState('');
   const query = search.trim().toLowerCase();
   const found = query ? active.filter((e) => matchesQuery(e, query)) : active;
-  const group = { query, openKey, onToggle: setOpenKey, onRemove };
+  // 지운 것을 화면 읽기 프로그램에 알린다. 줄이 사라지는 것은 읽어 주지 않아서
+  const [announcement, setAnnouncement] = useState('');
+  const remove = (entry: BlockEntry) => {
+    onRemove(entry);
+    setAnnouncement(t.list.unblocked(displayName(entry)));
+  };
+  const group = { query, openKey, onToggle: setOpenKey, onRemove: remove };
   // 손으로 넣는 입력칸은 접어 두고 제목 옆 + 버튼으로 펼친다
   const [adding, setAdding] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +61,10 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
 
   return (
     <section className="block-list">
+      {/* 처음부터 있어야 바뀐 글을 읽어 준다 */}
+      <p className="sr-only" aria-live="polite">
+        {announcement}
+      </p>
       <div className="list-head">
         <p className="total">
           <span className="num mono">{active.length}</span>
@@ -146,11 +156,26 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
   // 보던 쪽은 그때의 검색어와 같이 기억한다. 검색어가 바뀌면 결과가 달라지므로 첫 쪽부터 다시 본다.
   const [page, setPage] = useState({ query, index: 0 });
   const headRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  // 지운 줄의 키와 그 줄이 쪽에서 몇 번째였는지. 줄이 사라지면 그 자리로 포커스를 옮긴다
+  const [removing, setRemoving] = useState<{ key: string; index: number } | null>(null);
 
   const pageCount = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
   // 항목을 빼서 쪽이 줄었으면 마지막 쪽을 보여 준다
   const current = Math.min(page.query === query ? page.index : 0, pageCount - 1);
   const visible = sortEntries(entries, order, locale).slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+  const visibleKeys = visible.map(entryKey).join('\n');
+
+  // 지운 줄에 있던 포커스는 줄과 함께 사라진다. 그 자리에 올라온 줄(마지막이었으면 앞 줄)의 지우기 버튼으로 옮겨
+  // 여러 명을 이어서 지울 수 있게 한다. 남은 줄이 없으면 묶음 제목으로. 지우기는 저장소를 거쳐 돌아오므로 줄이 실제로 사라진 뒤에 옮긴다.
+  useEffect(() => {
+    if (!removing || visibleKeys.split('\n').includes(removing.key)) return;
+    const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>('button.unblock') ?? [];
+    const next = buttons[Math.min(removing.index, buttons.length - 1)] ?? titleRef.current;
+    next?.focus();
+    setRemoving(null);
+  }, [removing, visibleKeys]);
 
   const turnTo = (next: number) => {
     setPage({ query, index: next });
@@ -161,7 +186,8 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
   return (
     <section className={temporary ? 'group temporary' : 'group'}>
       <div className="group-head" ref={headRef}>
-        <h2>
+        {/* 마지막 줄을 지웠을 때 포커스를 받는다. Tab으로는 들르지 않는다 */}
+        <h2 ref={titleRef} tabIndex={-1}>
           <span className="kind-mark" />
           {title} <span className="count mono">{entries.length}</span>
         </h2>
@@ -192,8 +218,8 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
             {temporary && <span>{t.list.columns.until}</span>}
             <span>{t.list.columns.channel}</span>
           </div>
-          <ul>
-            {visible.map((entry) => {
+          <ul ref={listRef}>
+            {visible.map((entry, index) => {
               const key = entryKey(entry);
               const name = displayName(entry);
               const open = openKey === key;
@@ -219,7 +245,15 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
                           </svg>
                         </button>
                       )}
-                      <button type="button" onClick={() => onRemove(entry)} aria-label={t.list.unblock(name)}>
+                      <button
+                        type="button"
+                        className="unblock"
+                        onClick={() => {
+                          setRemoving({ key, index });
+                          onRemove(entry);
+                        }}
+                        aria-label={t.list.unblock(name)}
+                      >
                         <svg className="icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
                           <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
                         </svg>

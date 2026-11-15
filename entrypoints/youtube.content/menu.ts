@@ -80,15 +80,16 @@ export async function createCommentMenu(
     (e) => {
       if (!openTrigger || !root) return;
       const path = e.composedPath();
-      if (!path.includes(root) && !path.includes(openTrigger)) close();
+      // 누른 곳으로 포커스가 갈 것이라 버튼으로 돌려놓지 않는다
+      if (!path.includes(root) && !path.includes(openTrigger)) close({ returnFocus: false });
     },
     { capture: true },
   );
   ctx.addEventListener(document, 'keydown', (e) => {
     if (e.key === 'Escape') close();
   });
-  ctx.addEventListener(window, 'scroll', close, { capture: true, passive: true });
-  ctx.addEventListener(window, 'wxt:locationchange', close);
+  ctx.addEventListener(window, 'scroll', () => close(), { capture: true, passive: true });
+  ctx.addEventListener(window, 'wxt:locationchange', () => close());
   // 이 스크립트가 끊기면(확장이 꺼지거나 업데이트됨) 메뉴가 사라져 버튼을 눌러도 열리지 않는다. 죽은 버튼을 남기지 않는다.
   ctx.onInvalidated(() => {
     for (const trigger of document.querySelectorAll(`[${TRIGGER_ATTR}]`)) trigger.remove();
@@ -169,11 +170,19 @@ export async function createCommentMenu(
     root.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
   }
 
-  function close() {
+  /**
+   * 포커스가 메뉴 안에 있었으면 메뉴를 연 버튼으로 돌려놓는다. Esc, 항목 고르기, 스크롤로 닫을 때다.
+   * 숨긴 메뉴에 남은 포커스는 갈 곳이 없어, 키보드로 쓰는 사람은 페이지 처음부터 다시 찾아와야 했다.
+   */
+  function close({ returnFocus = true } = {}) {
     if (!root || !openTrigger) return;
+    const trigger = openTrigger;
+    const focusInside = root.contains((root.getRootNode() as ShadowRoot).activeElement);
     root.hidden = true;
-    openTrigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-expanded', 'false');
     openTrigger = undefined;
+    // 스크롤로 닫혔을 때 버튼을 화면에 들이려고 페이지가 움직이지 않게
+    if (returnFocus && focusInside) trigger.focus({ preventScroll: true });
   }
 }
 
