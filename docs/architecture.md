@@ -377,7 +377,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
   - 칸 너비가 같은 묶음(`sliding`, 기본)은 고른 칸 뒤에 색 덩어리(`.segmented-thumb`)를 깔고, 고른 칸이 바뀌면 덩어리가 200ms 동안 미끄러져 옮겨 간다. 칸 수와 순서는 `--count`, `--index`로 CSS에 넘긴다. 아무것도 고르지 않았으면 덩어리를 감춘다. 칸 너비가 글자마다 다른 정렬 버튼은 `sliding={false}`로 고른 칸만 칠한다.
 - `components/displayModes.ts` 표시 방법의 선택지와 이름(`displayModeOptions(t)`, `displayModeLabel(mode, t)`), 언어 선택지(`languageOptions(t, browserLocale)`). 팝업, 설정, 첫 사용 안내가 쓴다.
 - `hooks/useI18n.tsx` `I18nProvider`와 `useI18n()`. 위 "언어".
-- `components/DurationField.tsx` 임시 차단 기간. 1일·7일·30일·직접 네 칸이고 ms 하나로 저장한다. 직접을 고르면 "기간" 줄 오른쪽에 숫자와 시간/일이 나오고, 고르기만 해서는 저장하지 않는다. 1~9999의 정수만 저장한다(입력칸의 `max`는 브라우저가 막아 주지 않아서 저장할 때도 본다). 직접을 누르면 입력칸으로 포커스를 옮기고 숫자를 골라 둔다. 입력칸이 버튼보다 앞(“기간” 옆)에 생겨서, 그대로 두면 키보드로는 Tab으로 갈 수 없다. 팝업과 첫 사용 안내가 쓴다.
+- `components/DurationField.tsx` 임시 차단 기간. 1일·7일·30일·직접 네 칸이고 ms 하나로 저장한다. 직접을 고르면 "기간" 줄 오른쪽에 숫자와 시간/일이 나오고, 고르기만 해서는 저장하지 않는다. 입력칸에는 숫자만 네 자리까지 들어간다. `.`·`e`·`-`·`+`는 키를 눌러도, 숫자가 아닌 글은 붙여 넣어도 들어가지 않는다(number 입력칸은 그것들을 받고, `max`는 스피너만 멈춘다). 값이 들어가는 대로 1~9999면 저장한다. 비우거나 0으로 두고 나가면 저장된 값으로 되돌린다. 입력칸의 수와 실제로 쓰이는 기간이 어긋나지 않게. 직접을 누르면 입력칸으로 포커스를 옮기고 숫자를 골라 둔다. 입력칸이 버튼보다 앞(“기간” 옆)에 생겨서, 그대로 두면 키보드로는 Tab으로 갈 수 없다. 팝업과 첫 사용 안내가 쓴다.
 - `components/Switch.tsx` 켜고 끄는 설정 한 줄. `role="switch"`인 체크박스를 CSS로 그린다. 제목과 설명은 `aria-labelledby`·`aria-describedby`로 잇는다. `disabled`면 자리는 그대로 두고 흐리게 보인다. `hideText`면 스위치만 보이고 제목과 설명은 `.sr-only`로 화면 읽기 프로그램만 읽으며, 제목을 `title`로도 단다. 팝업과 첫 사용 안내가 쓴다.
 - `components/Logo.tsx` 팝업과 차단 목록 페이지 맨 위의 로고. 툴바 아이콘과 같은 그림이고 글자색을 따라간다.
 - `assets/icon/` 툴바 아이콘의 SVG 원본. `icon-16.svg`는 16px용, `icon.svg`는 그 밖의 크기용이다. `public/icon/`의 PNG는 이것을 헤드리스 크롬으로 그린 것이다.

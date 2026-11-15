@@ -5,8 +5,14 @@ import { DAY_MS, HOUR_MS, formatDuration } from '@/utils/duration';
 
 const DURATION_PRESETS = [DAY_MS, 7 * DAY_MS, 30 * DAY_MS];
 
-/** 직접 입력의 가장 큰 수. 입력칸의 max는 브라우저가 알려 주기만 하고 막지 않아서 저장할 때도 본다. */
+/** 직접 입력의 가장 큰 수. 입력칸의 max는 스피너만 멈추고 타자는 막지 않아서 자릿수로 막는다. */
 const MAX_AMOUNT = 9999;
+
+/**
+ * 직접 입력칸에 들어갈 수 있는 글. 숫자만, MAX_AMOUNT의 자릿수까지.
+ * 소수나 0 같은 값을 받아 두고 저장만 안 하면 입력칸의 수와 실제로 쓰이는 기간이 어긋나서, 들어오지 않게 막는다.
+ */
+const AMOUNT_TEXT = new RegExp(`^\\d{0,${String(MAX_AMOUNT).length}}$`);
 
 /**
  * 댓글 메뉴의 "임시 차단"이 쓰는 기간. 고정 항목 셋 또는 직접 입력(시간이나 일). 팝업과 첫 사용 안내가 쓴다.
@@ -36,6 +42,13 @@ export default function DurationField(props: { value: number; onChange: (ms: num
     if (Number.isInteger(n) && n > 0 && n <= MAX_AMOUNT) props.onChange(n * unitMs);
   };
 
+  // 입력칸을 지금 설정값으로 채운다. 하루로 떨어지면 일, 아니면 시간
+  const fillFromValue = () => {
+    const current = props.value % DAY_MS === 0 ? DAY_MS : HOUR_MS;
+    setUnit(current);
+    setAmount(String(props.value / current));
+  };
+
   const options: SegmentedOption<number | 'custom'>[] = [
     ...DURATION_PRESETS.map((ms) => ({ value: ms, label: formatDuration(ms, t.common) })),
     // 고정폭 글꼴에서는 띄어쓰기가 넓게 벌어져서 짧게 쓴다("직접 입력"이 아니라 "직접")
@@ -58,9 +71,22 @@ export default function DurationField(props: { value: number; onChange: (ms: num
               step={1}
               value={amount}
               aria-label={t.duration.amount}
+              // number 입력칸은 '.', 'e', '-', '+'를 받는다. 단축키와 화살표·지우기 같은 이름 있는 키는 그대로 둔다
+              onKeyDown={(e) => {
+                if (e.key.length === 1 && !/\d/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) e.preventDefault();
+              }}
+              onPaste={(e) => {
+                if (!/^\d+$/.test(e.clipboardData.getData('text'))) e.preventDefault();
+              }}
               onChange={(e) => {
+                // 받지 않으면 React가 입력칸을 앞의 값으로 되돌린다. 다섯째 자리는 여기서 막힌다
+                if (!AMOUNT_TEXT.test(e.target.value)) return;
                 setAmount(e.target.value);
                 commit(e.target.value, unit);
+              }}
+              // 비우거나 0으로 두고 나가면 저장되지 않은 수가 남는다. 실제로 쓰이는 값으로 되돌린다
+              onBlur={() => {
+                if (!(Number(amount) > 0)) fillFromValue();
               }}
             />
             <select
@@ -86,9 +112,7 @@ export default function DurationField(props: { value: number; onChange: (ms: num
         onChange={(next) => {
           if (next === 'custom') {
             // 고정 항목을 오가다 들어오면 입력칸이 예전 값을 들고 있다. 지금 설정값에서 다시 채운다.
-            const current = props.value % DAY_MS === 0 ? DAY_MS : HOUR_MS;
-            setUnit(current);
-            setAmount(String(props.value / current));
+            fillFromValue();
             justOpened.current = true;
             setCustom(true);
           } else {
