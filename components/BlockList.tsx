@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Segmented from '@/components/Segmented';
+import { useI18n } from '@/hooks/useI18n';
+import type { Locale } from '@/utils/i18n';
 import { entryKey, isExpired, parseEntry, type BlockEntry } from '@/utils/matcher';
 import './BlockList.css';
 
@@ -10,13 +12,6 @@ interface Props {
 }
 
 type SortOrder = 'recent' | 'oldest' | 'name' | 'until';
-
-const SORT_LABELS: Record<SortOrder, string> = {
-  recent: '최근에 차단한 순',
-  oldest: '오래된 순',
-  name: '이름순',
-  until: '곧 풀리는 순',
-};
 
 // 풀리는 때는 임시 차단에만 있다
 const PERMANENT_ORDERS: SortOrder[] = ['recent', 'oldest', 'name'];
@@ -30,6 +25,7 @@ const PAGE_SIZE = 20;
  * 임시 차단은 누구를 얼마 동안인지 댓글을 보면서 정하는 것이라 유튜브 화면의 메뉴에서만 만든다.
  */
 export default function BlockList({ entries, onAdd, onRemove }: Props) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState('');
   // 펼쳐 둔 항목. 목록이 길어지지 않게 두 묶음을 통틀어 한 번에 하나만 펼친다.
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -62,7 +58,7 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
       <div className="list-head">
         <p className="total">
           <span className="num mono">{active.length}</span>
-          <span className="unit">명 차단 중</span>
+          <span className="unit">{t.common.blockedCount}</span>
         </p>
         <div className="tools">
           <input
@@ -70,8 +66,8 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
             className="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="작성자 검색"
-            aria-label="차단한 작성자 검색"
+            placeholder={t.list.search}
+            aria-label={t.list.searchLabel}
           />
           <button
             type="button"
@@ -83,7 +79,7 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
             <svg className="icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
               <path d="M6 1.5v9M1.5 6h9" />
             </svg>
-            직접 추가
+            {t.list.add}
           </button>
         </div>
       </div>
@@ -102,24 +98,24 @@ export default function BlockList({ entries, onAdd, onRemove }: Props) {
               ref={inputRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="@핸들 또는 채널 ID (정확히 일치)"
+              placeholder={t.list.addPlaceholder}
             />
             <button type="submit" disabled={!parsed}>
-              추가
+              {t.list.addButton}
             </button>
           </form>
         </div>
       </div>
 
       <Group
-        title="영구 차단"
+        title={t.common.permanent}
         temporary={false}
         orders={PERMANENT_ORDERS}
         entries={found.filter((e) => e.until === undefined)}
         {...group}
       />
       <Group
-        title="임시 차단"
+        title={t.common.temporary}
         temporary
         orders={TEMPORARY_ORDERS}
         entries={found.filter((e) => e.until !== undefined)}
@@ -145,6 +141,7 @@ interface GroupProps {
 
 /** 영구 차단이나 임시 차단 한 묶음. 정렬과 쪽은 묶음마다 따로이고 저장하지 않는다. */
 function Group({ title, temporary, orders, entries, query, openKey, onToggle, onRemove }: GroupProps) {
+  const { t, locale } = useI18n();
   const [order, setOrder] = useState<SortOrder>('recent');
   // 보던 쪽은 그때의 검색어와 같이 기억한다. 검색어가 바뀌면 결과가 달라지므로 첫 쪽부터 다시 본다.
   const [page, setPage] = useState({ query, index: 0 });
@@ -153,7 +150,7 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
   const pageCount = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
   // 항목을 빼서 쪽이 줄었으면 마지막 쪽을 보여 준다
   const current = Math.min(page.query === query ? page.index : 0, pageCount - 1);
-  const visible = sortEntries(entries, order).slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+  const visible = sortEntries(entries, order, locale).slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
 
   const turnTo = (next: number) => {
     setPage({ query, index: next });
@@ -171,10 +168,10 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
         {/* 하나뿐이면 정렬할 게 없다 */}
         {entries.length > 1 && (
           <Segmented
-            label={`${title} 정렬`}
+            label={t.list.sortLabel(title)}
             className="tabs"
             sliding={false}
-            options={orders.map((o) => ({ value: o, label: SORT_LABELS[o] }))}
+            options={orders.map((o) => ({ value: o, label: t.list.sort[o] }))}
             value={order}
             onChange={(next) => {
               setOrder(next);
@@ -186,14 +183,14 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
       </div>
 
       {entries.length === 0 ? (
-        <p className="empty">{query ? '찾는 작성자 없음' : '아직 없음'}</p>
+        <p className="empty">{query ? t.list.noMatch : t.list.empty}</p>
       ) : (
         <>
           {/* 칸 이름은 눈으로 보는 표의 머리글이다. 스크린 리더는 줄마다 단추 이름으로 누구인지 듣는다 */}
           <div className="columns" aria-hidden="true">
-            <span>작성자</span>
-            {temporary && <span>풀리는 때</span>}
-            <span>채널 ID</span>
+            <span>{t.list.columns.author}</span>
+            {temporary && <span>{t.list.columns.until}</span>}
+            <span>{t.list.columns.channel}</span>
           </div>
           <ul>
             {visible.map((entry) => {
@@ -206,7 +203,7 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
                 <li key={key} className={open ? 'open' : undefined}>
                   <div className="summary">
                     <span className="name mono">{name}</span>
-                    {entry.until !== undefined && <span className="until mono">{formatTime(entry.until)}</span>}
+                    {entry.until !== undefined && <span className="until mono">{formatTime(entry.until, locale)}</span>}
                     {/* 핸들이 이름 자리에 나갔으면 채널 ID를 같이 보여 어느 쪽으로 매칭되는지 알게 한다 */}
                     <span className="channel mono">{entry.handle ? entry.channelId : undefined}</span>
                     <span className="actions">
@@ -214,7 +211,7 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
                         <button
                           type="button"
                           aria-expanded={open}
-                          aria-label={`${name} 차단한 경위 ${open ? '접기' : '보기'}`}
+                          aria-label={open ? t.list.hideDetails(name) : t.list.showDetails(name)}
                           onClick={() => onToggle(open ? null : key)}
                         >
                           <svg className="icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -222,7 +219,7 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
                           </svg>
                         </button>
                       )}
-                      <button type="button" onClick={() => onRemove(entry)} aria-label={`${name} 차단 해제`}>
+                      <button type="button" onClick={() => onRemove(entry)} aria-label={t.list.unblock(name)}>
                         <svg className="icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
                           <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
                         </svg>
@@ -238,9 +235,9 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
       )}
 
       {pageCount > 1 && (
-        <nav className="pager mono" aria-label={`${title} 쪽 넘기기`}>
+        <nav className="pager mono" aria-label={t.list.pagerLabel(title)}>
           <button type="button" disabled={current === 0} onClick={() => turnTo(current - 1)}>
-            ← 이전
+            {t.list.prev}
           </button>
           <span>
             {current + 1}/{pageCount}
@@ -250,7 +247,7 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
             disabled={current === pageCount - 1}
             onClick={() => turnTo(current + 1)}
           >
-            다음 →
+            {t.list.next}
           </button>
         </nav>
       )}
@@ -259,7 +256,7 @@ function Group({ title, temporary, orders, entries, query, openKey, onToggle, on
 }
 
 /** 저장된 순서는 넣은 순서다. 차단한 때가 같거나 없는 항목끼리는 그 순서를 따른다. */
-function sortEntries(entries: BlockEntry[], order: SortOrder): BlockEntry[] {
+function sortEntries(entries: BlockEntry[], order: SortOrder, locale: Locale): BlockEntry[] {
   const sorted = [...entries];
   const byTime = (a: BlockEntry, b: BlockEntry) => (a.at ?? 0) - (b.at ?? 0);
   switch (order) {
@@ -268,9 +265,9 @@ function sortEntries(entries: BlockEntry[], order: SortOrder): BlockEntry[] {
     case 'recent':
       return sorted.sort(byTime).reverse();
     case 'name':
-      // 핸들은 적은 대로 저장돼 있어서 대소문자가 섞여 있다. 매칭처럼 대소문자를 가리지 않는다.
+      // 핸들은 적은 대로 저장돼 있어서 대소문자가 섞여 있다. 매칭처럼 대소문자를 가리지 않는다. 글자 순서는 화면 언어를 따른다.
       return sorted.sort((a, b) =>
-        displayName(a).localeCompare(displayName(b), 'ko', { sensitivity: 'base' }),
+        displayName(a).localeCompare(displayName(b), locale, { sensitivity: 'base' }),
       );
     case 'until':
       return sorted.sort((a, b) => (a.until ?? Infinity) - (b.until ?? Infinity));
@@ -288,43 +285,44 @@ function displayName(entry: BlockEntry): string {
 
 /** 언제, 어느 영상의 어떤 댓글을 보고 차단했는지. */
 function Details({ entry }: { entry: BlockEntry }) {
+  const { t, locale } = useI18n();
   const { at, source } = entry;
   const link = youtubeUrl(source?.url);
   return (
     <dl className="details">
       {at !== undefined && (
         <>
-          <dt>차단한 때</dt>
-          <dd>{formatTime(at, true)}</dd>
+          <dt>{t.list.details.at}</dt>
+          <dd>{formatTime(at, locale, true)}</dd>
         </>
       )}
       {source?.videoTitle && (
         <>
-          <dt>영상</dt>
+          <dt>{t.list.details.video}</dt>
           <dd>{source.videoTitle}</dd>
         </>
       )}
       {source?.text && (
         <>
-          <dt>댓글</dt>
+          <dt>{t.list.details.comment}</dt>
           <dd className="quote">{source.text}</dd>
         </>
       )}
       {link && (
         <dd className="wide">
           <a href={link} target="_blank" rel="noreferrer">
-            이 댓글로 이동
+            {t.list.details.open}
           </a>
         </dd>
       )}
       {/* 경위는 동기화하지 않아서 다른 PC에서 차단한 항목에도 없다 */}
-      {!source && <dd className="wide muted">어느 댓글에서 차단했는지 이 PC에 기록 없음</dd>}
+      {!source && <dd className="wide muted">{t.list.details.noSource}</dd>}
     </dl>
   );
 }
 
-function formatTime(time: number, withYear = false): string {
-  return new Date(time).toLocaleString('ko-KR', {
+function formatTime(time: number, locale: Locale, withYear = false): string {
+  return new Date(time).toLocaleString(locale, {
     year: withYear ? 'numeric' : undefined,
     month: 'numeric',
     day: 'numeric',

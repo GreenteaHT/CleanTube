@@ -9,8 +9,10 @@ export default defineConfig({
   imports: false,
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'CleanTube',
-    description: '유튜브에서 지정한 작성자의 댓글을 가립니다.',
+    // 이름과 설명은 public/_locales에서 브라우저 언어로 고른다. 확장 안의 화면 글은 locales/에 따로 있다(utils/i18n.ts)
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
+    default_locale: 'en',
     permissions: ['storage'],
   },
 });

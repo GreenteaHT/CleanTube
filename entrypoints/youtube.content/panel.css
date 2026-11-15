@@ -19,12 +19,27 @@
   color: #f0f0f0;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   font:
-    13px/1.4 system-ui,
-    -apple-system,
+    13px/1.4 -apple-system,
     'Segoe UI',
     Roboto,
-    'Malgun Gothic',
     sans-serif;
+}
+
+/* 한글·가나·한자 글꼴. 패널에는 화면 언어가 lang으로 달린다. 목록은 style.css가 페이지에 둔 것을 물려받는다 */
+.panel:lang(ko) {
+  font-family: -apple-system, 'Segoe UI', Roboto, var(--cleantube-cjk-ko), sans-serif;
+}
+
+.panel:lang(ja) {
+  font-family: -apple-system, 'Segoe UI', Roboto, var(--cleantube-cjk-ja), sans-serif;
+}
+
+.panel:lang(zh-CN) {
+  font-family: -apple-system, 'Segoe UI', Roboto, var(--cleantube-cjk-zh), sans-serif;
+}
+
+.panel:lang(zh-TW) {
+  font-family: -apple-system, 'Segoe UI', Roboto, var(--cleantube-cjk-zh-tw), sans-serif;
 }
 
 .panel.collapsed {

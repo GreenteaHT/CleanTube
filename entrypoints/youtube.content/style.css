@@ -18,6 +18,18 @@
   position: relative;
 }
 
+/*
+ * 우리 글(가림막, 댓글 메뉴, 디버그 패널)의 한글·가나·한자 글꼴. 우리 요소에 화면 언어를 lang으로 달고 그 언어의 목록을 쓴다.
+ * 유튜브 페이지의 언어와 화면 언어가 다를 수 있다. 사용자 지정 속성은 Shadow DOM 안으로도 물려받아져 메뉴와 패널도 이것을 쓴다.
+ * 확장 페이지 쪽 목록은 assets/base.css에 같은 것이 있다. 이름을 적는 이유도 거기에.
+ */
+:root {
+  --cleantube-cjk-ko: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR';
+  --cleantube-cjk-ja: 'Yu Gothic UI', 'Meiryo UI', Meiryo, 'Hiragino Sans', 'Noto Sans JP';
+  --cleantube-cjk-zh: 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC';
+  --cleantube-cjk-zh-tw: 'Microsoft JhengHei UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC';
+}
+
 /* 가림막. 유튜브 요소 안에 들어가므로 all:unset으로 끊고 시작한다. 유튜브는 html 글자 크기가 10px이라 px로 적는다. */
 [data-cleantube-overlay] {
   all: unset;
@@ -31,6 +43,22 @@
     Arial,
     sans-serif;
   color: #606060;
+}
+
+[data-cleantube-overlay]:lang(ko) {
+  font-family: Roboto, Arial, var(--cleantube-cjk-ko), sans-serif;
+}
+
+[data-cleantube-overlay]:lang(ja) {
+  font-family: Roboto, Arial, var(--cleantube-cjk-ja), sans-serif;
+}
+
+[data-cleantube-overlay]:lang(zh-CN) {
+  font-family: Roboto, Arial, var(--cleantube-cjk-zh), sans-serif;
+}
+
+[data-cleantube-overlay]:lang(zh-TW) {
+  font-family: Roboto, Arial, var(--cleantube-cjk-zh-tw), sans-serif;
 }
 
 html[dark] [data-cleantube-overlay] {

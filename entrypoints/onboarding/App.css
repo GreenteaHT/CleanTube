@@ -160,11 +160,11 @@ a.primary:hover {
   border-radius: 3px;
   background: #ffffff;
   color: #0f0f0f;
+  /* 유튜브처럼 라틴 글자는 Roboto·Arial. 한글·가나·한자는 화면 언어의 글꼴(base.css의 --cjk) */
   font:
     14px/20px Roboto,
     Arial,
-    'Malgun Gothic',
-    'Apple SD Gothic Neo',
+    var(--cjk),
     sans-serif;
 }
 
@@ -344,4 +344,20 @@ html[dark] .how-cursor {
   .how-cursor {
     display: none;
   }
+}
+
+/* 맨 위 줄 오른쪽의 언어 고르기 */
+.language-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.language-select select {
+  height: 30px;
+  padding: 0 8px;
+  color: var(--fg);
+  font-size: 12px;
 }

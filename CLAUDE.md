@@ -18,14 +18,16 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 표시 방법에 맞는 속성을 붙인다. `display.ts`는 표시 방법 적용(무엇을 가릴지, 애니메이션, 가림막), `source.ts`는 차단한 댓글의 주소·제목·내용 읽기, `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
 - `entrypoints/popup/` React UI. 차단한 수와 차단 목록 페이지를 여는 버튼, 동기화 한도 안내, 표시 방법, 디버그 패널 토글. `useSettings`, `useBlocked`, `useSyncWarning` 훅으로 읽고 쓴다.
-- `entrypoints/options/` React UI. 차단 목록 페이지. 탭 하나로 열린다. 목록 보기와 편집은 여기에만 있다. `useBlocked` 훅으로 읽고 쓴다.
+- `entrypoints/options/` React UI. 설정 페이지. 브라우저 탭 하나로 열린다. "차단 목록"과 "언어" 두 탭. 차단 목록 보기와 편집, 언어 고르기는 여기에만 있다. `useBlocked`, `useSettings` 훅으로 읽고 쓴다.
 - `entrypoints/onboarding/` React UI. 첫 사용 안내. 처음 설치하면 탭으로 열린다. 차단하는 법을 보여 주고 표시 방법·기간·답글 범위를 예시 댓글을 보며 고르게 한다. 예시 댓글은 유튜브와 같은 태그 이름으로 그리고 `display.ts`의 `applyDisplay`와 `style.css`·`menu.css`를 그대로 써서 유튜브에서처럼 가리고 움직인다. 그쪽을 고치면 예시도 같이 확인한다.
 - `entrypoints/background.ts` 서비스 워커. 처음 설치하면 첫 사용 안내 탭을 열고, 차단 목록을 다른 PC와 맞춘다. 차단 목록의 `storage.sync`는 여기서만 쓴다.
 - `utils/blocklist.ts` 차단 목록. `storage.local`. 읽기 `loadBlocked`, 구독 `watchBlocked`, 쓰기는 `addBlock`/`removeBlock`(항목 하나)과 `blockAuthor`/`unblockAuthor`(그 작성자에게 걸린 것 전부)로만 한다. 뺀 항목은 뺀 시각을 남긴다. 다른 PC와 맞추는 `syncBlocked`는 백그라운드만 부른다.
 - `utils/blocksync.ts` 차단 목록을 sync에 나눠 담고 다른 PC의 것과 합치는 순수 함수. 테스트는 `tests/blocksync.test.ts`.
 - `utils/settings.ts` Settings 타입과 `storage.sync` 정의. 설정 항목을 추가할 때 여기서 시작. 읽기 `loadSettings`, 구독 `watchSettings`, 쓰기는 `updateSettings`로만 한다.
 - `utils/matcher.ts` 순수 매칭 함수. 브라우저 API 의존 금지. 테스트는 `tests/matcher.test.ts`.
-- `utils/duration.ts` 기간 상수와 표기("7일", "3시간").
+- `utils/duration.ts` 기간 상수와 표기("7일", "3 hours"). 단위의 글은 언어 파일에서 받는다.
+- `utils/i18n.ts` 화면 언어 고르기(`resolveLocale`)와 언어 파일 묶음(`messagesFor`). 순수 함수. 테스트는 `tests/i18n.test.ts`.
+- `locales/` 화면 글. `en.ts`(기준), `ko.ts`, `ja.ts`, `zh-CN.ts`(간체), `zh-TW.ts`(번체). 확장 페이지는 `useI18n()`, 콘텐츠 스크립트는 `index.ts`가 고른 `t`로 읽는다. 확장 이름과 스토어 설명만 `public/_locales`에 있다.
 - `utils/youtube.ts` 두 콘텐츠 스크립트가 같이 쓰는 셀렉터와 속성·이벤트 이름.
 
 ## 용어
@@ -34,6 +36,7 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - "표시 방법"은 차단된 댓글이 어떻게 보일지다. 완전히 숨기기, 흐리게, 문구로 바꾸기("차단된 댓글" 한 줄로).
 - UI 글자에 "숨기기"를 "차단"의 뜻으로 쓰지 않는다.
 - UI 글은 명사형·개조식으로 쓴다. "-요", "-다", "-니다"로 끝내지 않는다("찾는 작성자 없음", "기간 변경은 새로 거는 임시 차단부터 적용"). 첫 사용 안내의 예시 댓글처럼 사람이 쓴 글을 흉내 낸 것은 예외.
+- 영어 UI 글은 짧은 문장, 첫 글자만 대문자, 마침표 없이("No matching authors"). 두 마디는 " · "로 잇는다. 일본어·중국어도 짧은 구절로.
 
 ## 진행 방식
 
@@ -54,6 +57,8 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 - 댓글 메뉴 항목은 `index.ts`의 `menuItems()`가 돌려주는 목록에 `{ label, run }` 한 줄로 추가한다. 고를 값이 여러 개인 설정(기간 같은 것)은 메뉴가 아니라 팝업에 둔다.
 - `main()` 안에서 `let`/`const`는 그것을 쓰는 함수가 처음 불리기 전에 선언한다. 함수 선언은 끌어올려지지만 `let`은 아니어서, 순서가 틀리면 콘텐츠 스크립트가 시작하다 죽는다.
 - 새 설정 항목은 `Settings` 타입, `DEFAULT_SETTINGS`, UI, 콘텐츠 스크립트 순서로 추가한다.
+- 화면에 보이는 글(aria-label 포함)은 코드에 직접 쓰지 않고 `locales/`에 둔다. `en.ts`에 먼저 더하면 다른 언어 파일에 빠진 것을 타입 검사가 알려 준다. 숫자가 들어가면 함수로.
+- 한글·가나·한자 글꼴은 언어마다 이름을 적은 목록을 쓴다(`base.css`의 `--cjk`, 유튜브 쪽은 `style.css`의 `--cleantube-cjk-*`). 글꼴 목록 앞에 `system-ui`나 한 언어의 글꼴을 두지 않는다. 다른 언어가 그 글꼴로 섞여 그려진다.
 - 팝업과 차단 목록 페이지의 색은 `assets/base.css`의 변수로만 쓰고, 뜻이 있을 때만 쓴다. 검정은 영구 차단, 호박색은 임시 차단. 고정폭 글꼴은 숫자와 @핸들·채널 ID에만. 팝업은 크롬 한도인 600px 높이 안에 들어가야 한다.
 - 유튜브 셀렉터를 추가하거나 바꾸면 어느 화면의 어떤 요소인지 주석에 적는다.
 

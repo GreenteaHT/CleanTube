@@ -1,10 +1,12 @@
+import { useEffect } from 'react';
 import { browser } from '#imports';
 import DurationField from '@/components/DurationField';
 import Logo from '@/components/Logo';
 import Segmented from '@/components/Segmented';
 import Switch from '@/components/Switch';
-import { DISPLAY_MODE_OPTIONS } from '@/components/displayModes';
+import { displayModeOptions } from '@/components/displayModes';
 import { useBlocked } from '@/hooks/useBlocked';
+import { useI18n } from '@/hooks/useI18n';
 import { useSettings } from '@/hooks/useSettings';
 import { useSyncWarning } from '@/hooks/useSyncWarning';
 import { isExpired } from '@/utils/matcher';
@@ -14,13 +16,19 @@ import './App.css';
 /**
  * 툴바 아이콘을 눌렀을 때 뜨는 팝업. 차단한 수, 영구/임시 차단 설정, 답글 범위, 디버그 패널 토글.
  * 차단 목록은 여기 없고 차단 목록 페이지(entrypoints/options)에 있다. 팝업에는 그 페이지를 여는 버튼만 둔다.
+ * 언어 설정도 여기 없고 그 페이지의 설정 탭에 있다.
  */
 export default function App() {
+  const { t } = useI18n();
   const { settings, update } = useSettings();
   const { blocked } = useBlocked();
   const syncWarning = useSyncWarning();
 
-  if (!settings || !blocked) return <div className="popup loading muted">불러오는 중…</div>;
+  useEffect(() => {
+    document.title = 'CleanTube';
+  }, []);
+
+  if (!settings || !blocked) return <div className="popup loading muted">{t.common.loading}</div>;
 
   const setMode = (kind: 'permanent' | 'temporary', mode: DisplayMode) =>
     update({ display: { [kind]: mode } });
@@ -39,11 +47,11 @@ export default function App() {
       <section className="total">
         <p className="count">
           <span className="num mono">{blockedCount}</span>
-          <span className="unit">명 차단 중</span>
+          <span className="unit">{t.common.blockedCount}</span>
         </p>
         {/* 이미 열려 있으면 새 탭을 만들지 않고 그 탭으로 간다 */}
         <button type="button" className="open-list" onClick={() => browser.runtime.openOptionsPage()}>
-          차단 목록 관리
+          {t.popup.manageList}
           <svg className="icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
             <path d="M4.5 2.5h5v5M9.5 2.5L3 9" />
           </svg>
@@ -52,18 +60,18 @@ export default function App() {
       {syncWarning && (
         <p className="notice">
           {syncWarning.kind === 'over'
-            ? `오래전에 차단한 ${syncWarning.unsynced}명은 다른 PC와 동기화 안 됨`
-            : `동기화 공간 ${syncWarning.percent}% 사용 중`}
+            ? t.sync.overShort(syncWarning.unsynced)
+            : t.sync.nearShort(syncWarning.percent)}
         </p>
       )}
 
       <section className="kind">
         <h2>
           <span className="kind-mark" />
-          영구 차단
+          {t.common.permanent}
         </h2>
         <ModeField
-          kind="영구 차단"
+          kind={t.common.permanent}
           value={settings.display.permanent}
           onChange={(mode) => setMode('permanent', mode)}
         />
@@ -72,30 +80,30 @@ export default function App() {
       <section className="kind temporary">
         <h2>
           <span className="kind-mark" />
-          임시 차단
+          {t.common.temporary}
         </h2>
         <DurationField
           value={settings.temporaryDurationMs}
           onChange={(temporaryDurationMs) => update({ temporaryDurationMs })}
         />
         <ModeField
-          kind="임시 차단"
+          kind={t.common.temporary}
           value={settings.display.temporary}
           onChange={(mode) => setMode('temporary', mode)}
         />
-        <p className="muted">기간 변경은 새로 거는 임시 차단부터 적용</p>
+        <p className="muted">{t.popup.durationNote}</p>
       </section>
 
       <div className="switches">
         <Switch
-          label="답글도 함께 가리기"
-          description="흐리게·문구로 바꾸기에서도 답글까지 적용. 완전히 숨기기는 늘 답글 포함"
+          label={t.popup.coverReplies}
+          description={t.popup.coverRepliesHint}
           checked={settings.coverReplies}
           onChange={(coverReplies) => update({ coverReplies })}
         />
         <Switch
-          label="디버그 패널"
-          description="유튜브 화면 오른쪽에 읽은 댓글 목록 표시"
+          label={t.popup.debugPanel}
+          description={t.popup.debugPanelHint}
           checked={settings.debugPanel}
           onChange={(debugPanel) => update({ debugPanel })}
         />
@@ -105,12 +113,13 @@ export default function App() {
 }
 
 function ModeField(props: { kind: string; value: DisplayMode; onChange: (mode: DisplayMode) => void }) {
+  const { t } = useI18n();
   return (
     <div className="field">
-      <span className="field-label">표시 방법</span>
+      <span className="field-label">{t.common.display}</span>
       <Segmented
-        label={`${props.kind} 표시 방법`}
-        options={DISPLAY_MODE_OPTIONS}
+        label={t.common.displayOf(props.kind)}
+        options={displayModeOptions(t)}
         value={props.value}
         onChange={props.onChange}
       />
@@ -124,18 +133,19 @@ function ModeField(props: { kind: string; value: DisplayMode; onChange: (mode: D
  * 흐리게와 문구로 바꾸기의 모양은 youtube.content/style.css의 가림막을 따라 그린다.
  */
 function ModePreview({ mode }: { mode: DisplayMode }) {
+  const { t } = useI18n();
   return (
     <div className="preview" aria-hidden="true">
-      {mode === 'hide' && <span className="muted">이 자리에 아무것도 안 남음</span>}
+      {mode === 'hide' && <span className="muted">{t.popup.previewHide}</span>}
       {mode === 'blur' && (
         <span className="blurred">
-          <span className="mono">@작성자</span> 흐리게 가린 댓글 예시
+          <span className="mono">@author</span> {t.popup.previewBlur}
         </span>
       )}
       {mode === 'placeholder' && (
         <>
-          <span className="muted">차단된 댓글</span>
-          <span className="pill">숨긴 항목 보기</span>
+          <span className="muted">{t.overlay.blocked}</span>
+          <span className="pill">{t.overlay.show}</span>
         </>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { storage } from '#imports';
 import { DAY_MS } from './duration';
+import type { LanguageSetting } from './i18n';
 
 /**
  * 차단된 댓글을 보여 주는 방법.
@@ -22,6 +23,8 @@ export interface Settings {
    * hide는 이 값과 상관없이 스레드째 숨긴다. 댓글만 숨기면 "답글 N개"가 부모 없이 남기 때문이다.
    */
   coverReplies: boolean;
+  /** UI 언어. 'auto'면 브라우저 언어를 따른다. 팝업, 차단 목록 페이지, 첫 사용 안내, 유튜브 화면의 메뉴·가림막·패널이 모두 따른다. */
+  language: LanguageSetting;
 }
 
 /** updateSettings()에 넘기는 변경. display는 한쪽만 넘겨도 된다. */
@@ -34,6 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   temporaryDurationMs: 7 * DAY_MS,
   display: { permanent: 'hide', temporary: 'blur' },
   coverReplies: false,
+  language: 'auto',
 };
 
 /**

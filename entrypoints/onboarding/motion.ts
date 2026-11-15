@@ -39,11 +39,8 @@ export async function leave(frame: HTMLElement): Promise<void> {
     easing: 'ease-in',
     fill: 'forwards',
   });
-  try {
-    await animation.finished;
-  } catch {
-    // 취소돼도 다음 쪽으로 넘어간다
-  }
+  // 탭이 뒤로 가면 브라우저가 움직임을 멈춰 끝나지 않는다. 그래도 쪽은 넘어가게 시간으로도 끝낸다. 취소돼도 넘어간다
+  await Promise.race([animation.finished.catch(() => {}), new Promise((resolve) => setTimeout(resolve, LEAVE_MS + 50))]);
 }
 
 /** 새 쪽이 살짝 올라오며 나타난다. */

@@ -4,55 +4,26 @@ import DurationField from '@/components/DurationField';
 import Logo from '@/components/Logo';
 import Segmented from '@/components/Segmented';
 import Switch from '@/components/Switch';
-import { DISPLAY_MODE_OPTIONS, displayModeLabel } from '@/components/displayModes';
+import { displayModeLabel, displayModeOptions, languageOptions } from '@/components/displayModes';
+import { useI18n } from '@/hooks/useI18n';
 import { useSettings } from '@/hooks/useSettings';
 import { formatDuration } from '@/utils/duration';
+import type { LanguageSetting, Messages } from '@/utils/i18n';
 import type { DisplayMode, Settings, SettingsPatch } from '@/utils/settings';
-import CommentSample, { Comment, type SampleComment } from './CommentSample';
+import type { SampleComment } from '@/locales/en';
+import CommentSample, { Comment } from './CommentSample';
 import { enter, leave, playHowTo, prefersReducedMotion, usePrefersReducedMotion } from './motion';
 import './App.css';
 
 const STEP_COUNT = 4;
 
-// 예시 댓글. 실제 사람과 상관없는 지어낸 것이다. 사람이 쓴 댓글을 흉내 낸 것이라 UI 말투(명사형)를 따르지 않는다.
-const BEFORE: SampleComment = {
-  handle: '@movie_fan_22',
-  time: '3시간 전',
-  text: '연출이 정말 좋았어요. 마지막 10분은 숨도 못 쉬고 봤네요.',
-  likes: '1.2천',
-};
-const AFTER: SampleComment = {
-  handle: '@daily_watcher',
-  time: '1일 전',
-  text: '이 채널 영상은 늘 편집이 깔끔해서 좋아요.',
-  likes: '342',
-};
-const SPOILER: SampleComment = {
-  handle: '@결말요약봇',
-  time: '5시간 전',
-  text: '결말 스포 주의) 마지막 장면에서 결국 둘이 헤어지고 주인공은 혼자 떠나요.',
-  likes: '3',
-};
-const SPOILER_REPLIES: SampleComment[] = [
-  { handle: '@스포싫어', time: '4시간 전', text: '스포 좀 하지 마세요… 아직 안 봤는데', likes: '58' },
-  { handle: '@popcorn_time', time: '4시간 전', text: '이런 댓글은 안 보였으면 좋겠어요', likes: '21' },
-];
-const HEATED: SampleComment = {
-  handle: '@heated_debater',
-  time: '2시간 전',
-  text: '이 영상 보고도 그렇게 생각하면 진짜 답이 없네요. 다들 제대로 보긴 한 거예요?',
-  likes: '12',
-};
-const HEATED_REPLIES: SampleComment[] = [
-  { handle: '@calm_viewer', time: '1시간 전', text: '그렇게까지 말할 일은 아닌 것 같은데요', likes: '40' },
-  { handle: '@popcorn_time', time: '1시간 전', text: '또 시작이네…', likes: '9' },
-];
-
 /**
  * 첫 사용 안내. 설치하면 백그라운드가 탭 하나로 연다. 차단하는 법을 보여 주고, 표시 방법·기간·답글 범위를 예시 댓글을 보며 고르게 한다.
  * 고른 값은 팝업처럼 바로 저장한다. 건너뛰면 그때까지 고른 것과 나머지 기본값이 남는다. 나중에는 팝업에서 바꾼다.
+ * 맨 위 줄에서 언어를 고를 수 있다. 처음에는 브라우저 언어를 따른다.
  */
 export default function App() {
+  const { t, locale, setting, browserLocale } = useI18n();
   const { settings, update } = useSettings();
   const dark = usePrefersDark();
   const [step, setStep] = useState(0);
@@ -68,6 +39,10 @@ export default function App() {
   });
   const headingRef = useRef<HTMLHeadingElement>(null);
   const turned = useRef(false);
+
+  useEffect(() => {
+    document.title = `CleanTube · ${t.onboarding.title}`;
+  }, [t]);
 
   useEffect(() => {
     // 쪽을 넘겼을 때만. 스크린 리더가 새 쪽의 제목부터 읽게 한다. 처음 열 때는 페이지 맨 위에서 시작한다.
@@ -94,6 +69,8 @@ export default function App() {
     void update({ display: { [kind]: mode } });
   };
 
+  const samples = t.samples;
+
   return (
     <>
       <header className="page-bar">
@@ -102,11 +79,29 @@ export default function App() {
         <span className="muted" aria-hidden="true">
           /
         </span>
-        <h1>시작하기</h1>
+        <h1>{t.onboarding.title}</h1>
+        {/* 브라우저 언어가 아닌 언어로 쓰고 싶은 사람이 처음부터 고를 수 있게. 나중에는 설정 페이지의 언어 탭에서 */}
+        <label className="language-select">
+          <svg className="icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M2 8h12M8 2c1.8 1.7 2.6 3.7 2.6 6S9.8 12.3 8 14M8 2C6.2 3.7 5.4 5.7 5.4 8s.8 4.3 2.6 6" />
+          </svg>
+          <select
+            aria-label={t.onboarding.language}
+            value={setting}
+            onChange={(e) => void update({ language: e.target.value as LanguageSetting })}
+          >
+            {languageOptions(t, browserLocale).map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </header>
 
       {!settings ? (
-        <main className="onboarding muted">불러오는 중…</main>
+        <main className="onboarding muted">{t.common.loading}</main>
       ) : (
         <main className="onboarding">
           <div className="progress">
@@ -126,95 +121,96 @@ export default function App() {
 
           {/* 쪽마다 새 요소로 만든다. 사라지게 붙잡아 둔 이전 쪽의 상태를 들고 오지 않게 */}
           <div key={step} ref={frameRef} className="step-frame">
-          {step === 0 && (
-            <section className="step">
-              <h2 ref={headingRef} tabIndex={-1}>
-                차단하는 법
-              </h2>
-              <p className="lead">댓글에 마우스 올리기 → 오른쪽 CleanTube 버튼 → 영구 차단 또는 임시 차단</p>
-              <ul className="notes muted">
-                <li>차단한 작성자의 댓글은 그다음부터 어느 영상에서든 가림</li>
-                <li>영구 차단은 직접 풀 때까지, 임시 차단은 정한 기간이 지나면 저절로 풀림</li>
-              </ul>
-              <HowToBlock dark={dark} durationMs={settings.temporaryDurationMs} />
-            </section>
-          )}
+            {step === 0 && (
+              <section className="step">
+                <h2 ref={headingRef} tabIndex={-1}>
+                  {t.onboarding.howTitle}
+                </h2>
+                <p className="lead">{t.onboarding.howLead}</p>
+                <ul className="notes muted">
+                  {t.onboarding.howNotes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+                <HowToBlock dark={dark} durationMs={settings.temporaryDurationMs} />
+              </section>
+            )}
 
-          {step === 1 && (
-            <ModeStep
-              kind="permanent"
-              title="영구 차단 표시 방법"
-              lead="스팸, 스포일러처럼 다시 볼 일 없는 작성자용 · 직접 풀 때까지 유지"
-              blocked={SPOILER}
-              replies={SPOILER_REPLIES}
-              chosen={chosen.permanent}
-              onChoose={(mode) => choose('permanent', mode)}
-              settings={settings}
-              update={update}
-              headingRef={headingRef}
-            />
-          )}
+            {step === 1 && (
+              <ModeStep
+                kind="permanent"
+                title={t.onboarding.permanentTitle}
+                lead={t.onboarding.permanentLead}
+                blocked={samples.spoiler}
+                replies={samples.spoilerReplies}
+                chosen={chosen.permanent}
+                onChoose={(mode) => choose('permanent', mode)}
+                settings={settings}
+                update={update}
+                headingRef={headingRef}
+              />
+            )}
 
-          {step === 2 && (
-            <ModeStep
-              kind="temporary"
-              title="임시 차단 기간과 표시 방법"
-              lead="말다툼 중인 사람처럼 잠깐만 안 보고 싶은 작성자용 · 정한 기간이 지나면 저절로 풀림"
-              blocked={HEATED}
-              replies={HEATED_REPLIES}
-              chosen={chosen.temporary}
-              onChoose={(mode) => choose('temporary', mode)}
-              settings={settings}
-              update={update}
-              headingRef={headingRef}
-            />
-          )}
+            {step === 2 && (
+              <ModeStep
+                kind="temporary"
+                title={t.onboarding.temporaryTitle}
+                lead={t.onboarding.temporaryLead}
+                blocked={samples.heated}
+                replies={samples.heatedReplies}
+                chosen={chosen.temporary}
+                onChoose={(mode) => choose('temporary', mode)}
+                settings={settings}
+                update={update}
+                headingRef={headingRef}
+              />
+            )}
 
-          {step === 3 && (
-            <section className="step">
-              <h2 ref={headingRef} tabIndex={-1}>
-                준비 완료
-              </h2>
-              <dl className="summary">
-                <dt>
-                  <span className="kind-mark" />
-                  영구 차단
-                </dt>
-                <dd>{displayModeLabel(settings.display.permanent)}</dd>
-                <dt className="temporary">
-                  <span className="kind-mark" />
-                  임시 차단
-                </dt>
-                <dd>
-                  <span className="mono">{formatDuration(settings.temporaryDurationMs)}</span> ·{' '}
-                  {displayModeLabel(settings.display.temporary)}
-                </dd>
-                <dt>답글</dt>
-                <dd>{repliesSummary(settings)}</dd>
-              </dl>
-              <p className="muted">나중에 바꾸려면 툴바의 CleanTube 아이콘 → 팝업</p>
-            </section>
-          )}
+            {step === 3 && (
+              <section className="step">
+                <h2 ref={headingRef} tabIndex={-1}>
+                  {t.onboarding.doneTitle}
+                </h2>
+                <dl className="summary">
+                  <dt>
+                    <span className="kind-mark" />
+                    {t.common.permanent}
+                  </dt>
+                  <dd>{displayModeLabel(settings.display.permanent, t)}</dd>
+                  <dt className="temporary">
+                    <span className="kind-mark" />
+                    {t.common.temporary}
+                  </dt>
+                  <dd>
+                    <span className="mono">{formatDuration(settings.temporaryDurationMs, t.common)}</span> ·{' '}
+                    {displayModeLabel(settings.display.temporary, t)}
+                  </dd>
+                  <dt>{t.onboarding.summaryReplies}</dt>
+                  <dd>{repliesSummary(settings, t)}</dd>
+                </dl>
+                <p className="muted">{t.onboarding.changeLater}</p>
+              </section>
+            )}
           </div>
 
-          <nav className="step-nav" aria-label="안내 쪽 넘기기">
+          <nav className="step-nav" aria-label={t.onboarding.navLabel}>
             {step < STEP_COUNT - 1 && (
               <button type="button" className="skip" onClick={closeTab}>
-                건너뛰기
+                {t.onboarding.skip}
               </button>
             )}
             {step > 0 && (
               <button type="button" onClick={() => void go(step - 1)}>
-                이전
+                {t.onboarding.back}
               </button>
             )}
             {step < STEP_COUNT - 1 ? (
               <button type="button" className="primary" onClick={() => void go(step + 1)}>
-                다음
+                {t.onboarding.next}
               </button>
             ) : (
               <a className="button primary" href="https://www.youtube.com">
-                유튜브로 가기
+                {t.onboarding.goToYoutube}
               </a>
             )}
           </nav>
@@ -230,20 +226,23 @@ export default function App() {
  * 설명은 위 글이 하므로 그림은 스크린 리더와 탭 이동에서 뺀다.
  */
 function HowToBlock({ dark, durationMs }: { dark: boolean; durationMs: number }) {
+  const { t, locale } = useI18n();
   const sceneRef = useRef<HTMLElement>(null);
   const reducedMotion = usePrefersReducedMotion();
+  const heated = t.samples.heated;
 
   useLayoutEffect(() => {
     if (reducedMotion || !sceneRef.current) return;
     return playHowTo(sceneRef.current);
-  }, [reducedMotion]);
+    // 언어가 바뀌면 댓글 글의 길이가 달라져 커서가 갈 자리도 바뀐다. 다시 잰다
+  }, [reducedMotion, locale]);
 
   return (
     <section ref={sceneRef} className="yt-sample how" aria-hidden="true" inert>
-      <span className="yt-sample-tag">예시</span>
+      <span className="yt-sample-tag">{t.onboarding.example}</span>
       <div className="yt-thread">
         <Comment
-          comment={HEATED}
+          comment={heated}
           trailing={
             <div className="yt-menu-slot">
               {/* 아이콘은 youtube.content/menu.ts의 ICON과 같은 그림이다 */}
@@ -260,9 +259,9 @@ function HowToBlock({ dark, durationMs }: { dark: boolean; durationMs: number })
                 <circle cx="12" cy="18.5" r="1.6" />
               </svg>
               <div className={dark ? 'menu dark' : 'menu'}>
-                <div className="who">{HEATED.handle}</div>
-                <button type="button">영구 차단</button>
-                <button type="button">임시 차단 · {formatDuration(durationMs)}</button>
+                <div className="who">{heated.handle}</div>
+                <button type="button">{t.youtube.blockPermanent}</button>
+                <button type="button">{t.youtube.blockTemporary(formatDuration(durationMs, t.common))}</button>
               </div>
             </div>
           }
@@ -276,7 +275,7 @@ function HowToBlock({ dark, durationMs }: { dark: boolean; durationMs: number })
   );
 }
 
-/** 영구 차단이나 임시 차단의 표시 방법을 고르는 쪽. 임시면 기간도 고른다. 답글 범위 스위치는 흐리게·문구로 바꾸기일 때만 나온다. */
+/** 영구 차단이나 임시 차단의 표시 방법을 고르는 쪽. 임시면 기간도 고른다. */
 function ModeStep(props: {
   kind: 'permanent' | 'temporary';
   title: string;
@@ -290,15 +289,16 @@ function ModeStep(props: {
   update: (patch: SettingsPatch) => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
+  const { t, locale } = useI18n();
   const { kind, chosen, settings, update } = props;
-  const kindName = kind === 'permanent' ? '영구 차단' : '임시 차단';
+  const kindName = kind === 'permanent' ? t.common.permanent : t.common.temporary;
   // 답글 범위는 흐리게와 문구로 바꾸기에만 쓰인다. 스위치는 늘 자리에 두고(예시가 들썩이지 않게) 쓸 수 없을 때는 흐리게 둔다.
   const replies =
     chosen === null
-      ? { disabled: true, checked: settings.coverReplies, description: '흐리게·문구로 바꾸기를 고르면 설정 가능' }
+      ? { disabled: true, checked: settings.coverReplies, description: t.onboarding.repliesDisabled }
       : chosen === 'hide'
-        ? { disabled: true, checked: true, description: '완전히 숨기기는 늘 답글 포함' }
-        : { disabled: false, checked: settings.coverReplies, description: '영구·임시 차단 공통 설정' };
+        ? { disabled: true, checked: true, description: t.onboarding.repliesAlways }
+        : { disabled: false, checked: settings.coverReplies, description: t.onboarding.repliesShared };
 
   return (
     <section className={kind === 'temporary' ? 'step temporary' : 'step'}>
@@ -315,16 +315,16 @@ function ModeStep(props: {
           />
         )}
         <div className="field">
-          <span className="field-label">표시 방법</span>
+          <span className="field-label">{t.common.display}</span>
           <Segmented
-            label={`${kindName} 표시 방법`}
-            options={DISPLAY_MODE_OPTIONS}
+            label={t.common.displayOf(kindName)}
+            options={displayModeOptions(t)}
             value={chosen}
             onChange={props.onChoose}
           />
         </div>
         <Switch
-          label="답글도 함께 가리기"
+          label={t.popup.coverReplies}
           description={replies.description}
           checked={replies.checked}
           disabled={replies.disabled}
@@ -333,14 +333,16 @@ function ModeStep(props: {
       </div>
       <p className="caption">
         {chosen === null
-          ? `고르면 아래 예시에 바로 적용 · 고르지 않으면 지금 설정(${displayModeLabel(settings.display[kind])}) 유지`
-          : caption(chosen, props.blocked.handle, settings.coverReplies)}
+          ? t.onboarding.unchosen(displayModeLabel(settings.display[kind], t))
+          : caption(chosen, props.blocked.handle, settings.coverReplies, t)}
       </p>
+      {/* 언어가 바뀌면 예시 댓글의 글과 길이가 달라져서 새로 만들어 높이를 다시 잰다. 고른 모습은 바로 다시 적용된다 */}
       <CommentSample
-        before={BEFORE}
+        key={locale}
+        before={t.samples.before}
         blocked={props.blocked}
         replies={props.replies}
-        after={AFTER}
+        after={t.samples.after}
         mode={chosen}
         coverReplies={settings.coverReplies}
       />
@@ -348,19 +350,16 @@ function ModeStep(props: {
   );
 }
 
-function caption(mode: DisplayMode, handle: string, coverReplies: boolean): string {
-  if (mode === 'hide') return `${handle}의 댓글이 답글까지 통째로 접혀 빠짐 · 그 자리에 아무것도 안 남음`;
-  const look =
-    mode === 'blur'
-      ? '흐리게 표시 · 마우스를 올리면 "숨긴 항목 보기"'
-      : '"차단된 댓글" 한 줄만 남음 · "숨긴 항목 보기"로 잠깐 열기';
-  return `${look} · ${coverReplies ? '답글까지 가림' : '답글은 그대로'}`;
+function caption(mode: DisplayMode, handle: string, coverReplies: boolean, t: Messages): string {
+  if (mode === 'hide') return t.onboarding.captionHide(handle);
+  const look = mode === 'blur' ? t.onboarding.captionBlur : t.onboarding.captionPlaceholder;
+  return `${look} · ${coverReplies ? t.onboarding.repliesCovered : t.onboarding.repliesVisible}`;
 }
 
-function repliesSummary(settings: Settings): string {
+function repliesSummary(settings: Settings, t: Messages): string {
   const { permanent, temporary } = settings.display;
-  if (permanent === 'hide' && temporary === 'hide') return '완전히 숨기기라 늘 함께 숨김';
-  return settings.coverReplies ? '함께 가림' : '그대로 둠';
+  if (permanent === 'hide' && temporary === 'hide') return t.onboarding.summaryRepliesAlways;
+  return settings.coverReplies ? t.onboarding.summaryRepliesCovered : t.onboarding.summaryRepliesVisible;
 }
 
 /** 건너뛰기. 이 탭을 닫는다. 확장이 연 탭이라 window.close()가 아니라 tabs로 닫는다. */

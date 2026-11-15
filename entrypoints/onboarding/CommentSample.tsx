@@ -1,13 +1,8 @@
 import { useLayoutEffect, useRef, type DetailedHTMLProps, type HTMLAttributes, type ReactNode, type Ref } from 'react';
 import { applyDisplay } from '@/entrypoints/youtube.content/display';
+import { useI18n } from '@/hooks/useI18n';
+import type { SampleComment } from '@/locales/en';
 import type { DisplayMode } from '@/utils/settings';
-
-export interface SampleComment {
-  handle: string;
-  time: string;
-  text: string;
-  likes: string;
-}
 
 // 예시 댓글은 유튜브와 같은 태그 이름으로 그린다. display.ts가 이 이름으로 스레드와 답글 묶음을 찾는다.
 type YoutubeElement = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>;
@@ -35,6 +30,7 @@ export default function CommentSample(props: {
   mode: DisplayMode | null;
   coverReplies: boolean;
 }) {
+  const { t, locale } = useI18n();
   const { mode, coverReplies } = props;
   const sectionRef = useRef<HTMLElement>(null);
   const commentRef = useRef<HTMLElement>(null);
@@ -52,13 +48,16 @@ export default function CommentSample(props: {
     applyDisplay(comment, mode ? { key: props.blocked.handle, mode } : null, {
       coverReplies,
       animate: shown.current,
+      text: t.overlay,
+      lang: locale,
     });
     shown.current = true;
-  }, [mode, coverReplies, props.blocked.handle]);
+    // 언어가 바뀌면 이 예시는 새로 만들어지므로(App의 key) 가림막 글은 따로 볼 것이 없다
+  }, [mode, coverReplies, props.blocked.handle, t.overlay, locale]);
 
   return (
-    <section ref={sectionRef} className="yt-sample" aria-label="예시 댓글">
-      <span className="yt-sample-tag">예시</span>
+    <section ref={sectionRef} className="yt-sample" aria-label={t.onboarding.exampleLabel}>
+      <span className="yt-sample-tag">{t.onboarding.example}</span>
       <ytd-comment-thread-renderer className="yt-thread">
         <Comment comment={props.before} />
       </ytd-comment-thread-renderer>
@@ -84,6 +83,7 @@ export function Comment(props: {
   commentRef?: Ref<HTMLElement>;
   trailing?: ReactNode;
 }) {
+  const { t } = useI18n();
   const { comment } = props;
   return (
     <ytd-comment-view-model ref={props.commentRef} className={props.reply ? 'yt-comment reply' : 'yt-comment'}>
@@ -101,7 +101,7 @@ export function Comment(props: {
             <ThumbIcon />
             <span>{comment.likes}</span>
             <ThumbIcon down />
-            <span className="yt-reply-button">답글</span>
+            <span className="yt-reply-button">{t.onboarding.reply}</span>
           </div>
         </div>
         {props.trailing}

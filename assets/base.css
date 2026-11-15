@@ -24,16 +24,17 @@
   --track-off: #d4d4d4;
   --thumb-off: #ffffff;
 
-  --mono: 'IBM Plex Mono', 'Malgun Gothic', 'Apple SD Gothic Neo', monospace;
+  /*
+   * 한글·가나·한자 글꼴. 화면 언어(lang)마다 그 언어의 글꼴을 쓴다. 아래 :lang 규칙이 바꾼다.
+   * system-ui를 앞에 두면 한국어 윈도우에서는 일본어·중국어까지 맑은 고딕으로 그린다. 이름 없이 sans-serif에만 맡기면
+   * 굵기에 따라 일본어의 한자만 중국어 글꼴로 그리기도 한다(굵기 500에서 실측). 그래서 이름을 적는다.
+   * 유튜브 화면 쪽 목록은 youtube.content/style.css에 같은 것이 있다.
+   */
+  --cjk: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR';
+  /* 고정폭은 라틴 글자만 Plex Mono. @핸들의 한글 등은 화면 언어의 글꼴로 */
+  --mono: 'IBM Plex Mono', -apple-system, 'Segoe UI', var(--cjk), monospace;
 
   color-scheme: light dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    'Malgun Gothic',
-    'Apple SD Gothic Neo',
-    sans-serif;
   font-size: 13px;
   line-height: 1.4;
 }
@@ -51,6 +52,24 @@
     --track-off: #4a4a4a;
     --thumb-off: #a3a3a3;
   }
+}
+
+:lang(ja) {
+  --cjk: 'Yu Gothic UI', 'Meiryo UI', Meiryo, 'Hiragino Sans', 'Noto Sans JP';
+}
+
+:lang(zh-CN) {
+  --cjk: 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC';
+}
+
+:lang(zh-TW) {
+  --cjk: 'Microsoft JhengHei UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC';
+}
+
+/* 크롬은 확장 페이지의 body에 기본 글꼴을 따로 준다. 여기서 정한다. 언어 이름처럼 lang을 단 요소는 그 언어의 글꼴로 다시 정한다 */
+body,
+[lang] {
+  font-family: -apple-system, 'Segoe UI', var(--cjk), sans-serif;
 }
 
 * {
@@ -146,6 +165,16 @@ button:disabled {
 
 .mono {
   font-family: var(--mono);
+}
+
+/* 눈에는 안 보이고 화면 읽기 프로그램만 읽는 글 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* 영구 차단(검정)과 임시 차단(호박색) 묶음 제목 앞의 네모 */

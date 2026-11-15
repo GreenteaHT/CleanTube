@@ -1,5 +1,6 @@
 /*
  * 댓글 메뉴 드롭다운. Shadow DOM 안에만 적용된다.
+ * 메뉴에는 화면 언어가 lang으로 달린다. 한글·가나·한자는 아래 :lang 규칙이 그 언어의 글꼴로 그린다.
  * 유튜브 메뉴와 비슷한 모양으로 맞추되 유튜브 CSS 변수에는 기대지 않는다. 테마는 .dark 클래스로 받는다.
  */
 
@@ -15,11 +16,26 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
   font:
     14px/1.4 Roboto,
-    system-ui,
     -apple-system,
     'Segoe UI',
-    'Malgun Gothic',
     sans-serif;
+}
+
+/* 한글·가나·한자 글꼴. 목록은 style.css가 페이지에 둔 것을 물려받는다 */
+.menu:lang(ko) {
+  font-family: Roboto, -apple-system, 'Segoe UI', var(--cleantube-cjk-ko), sans-serif;
+}
+
+.menu:lang(ja) {
+  font-family: Roboto, -apple-system, 'Segoe UI', var(--cleantube-cjk-ja), sans-serif;
+}
+
+.menu:lang(zh-CN) {
+  font-family: Roboto, -apple-system, 'Segoe UI', var(--cleantube-cjk-zh), sans-serif;
+}
+
+.menu:lang(zh-TW) {
+  font-family: Roboto, -apple-system, 'Segoe UI', var(--cleantube-cjk-zh-tw), sans-serif;
 }
 
 .menu.dark {

@@ -7,6 +7,16 @@ export interface MenuItem {
   run(): void;
 }
 
+/** 메뉴 자체의 글. 화면 언어를 따른다(locales/의 youtube). 항목의 글은 itemsFor가 정한다. */
+export interface MenuText {
+  /** 메뉴 버튼의 이름. 화면 읽기 프로그램이 읽는다 */
+  menuLabel: string;
+  /** 작성자를 못 읽은 댓글에서 메뉴 맨 위에 적는 것 */
+  unknownAuthor: string;
+  /** 화면 언어. 메뉴에 lang으로 달아 브라우저가 그 언어의 글꼴로 그리게 한다(유튜브 페이지의 언어와 다를 수 있다) */
+  lang: string;
+}
+
 export interface CommentMenu {
   /** 댓글에 메뉴 버튼이 없으면 붙인다. 유튜브가 댓글을 다시 그리면 버튼이 사라질 수 있어서 스캔할 때마다 부른다. */
   attach(comment: HTMLElement): void;
@@ -37,6 +47,8 @@ export async function createCommentMenu(
   ctx: ContentScriptContext,
   itemsFor: (author: Author, comment: HTMLElement) => readonly MenuItem[],
   readAuthor: (comment: HTMLElement) => Author,
+  /** 열 때마다, 버튼을 붙일 때마다 물어서 언어가 바뀌면 그다음부터 따른다. */
+  text: () => MenuText,
 ): Promise<CommentMenu> {
   let root: HTMLElement | undefined;
   let openTrigger: HTMLButtonElement | undefined;
@@ -79,7 +91,14 @@ export async function createCommentMenu(
   return {
     attach(comment) {
       const slot = comment.querySelector(SLOT_SELECTOR);
-      if (!slot || slot.querySelector(`[${TRIGGER_ATTR}]`)) return;
+      if (!slot) return;
+      const existing = slot.querySelector(`[${TRIGGER_ATTR}]`);
+      if (existing) {
+        // 언어가 바뀌었으면 이미 붙은 버튼의 이름도 바꾼다. 스캔할 때마다 불리므로 같으면 건드리지 않는다
+        const label = text().menuLabel;
+        if (existing.getAttribute('aria-label') !== label) existing.setAttribute('aria-label', label);
+        return;
+      }
       // 유튜브 ⋮의 왼쪽에 둔다. 나란히 놓는 배치는 style.css.
       slot.prepend(createTrigger(comment));
     },
@@ -90,7 +109,7 @@ export async function createCommentMenu(
     const button = document.createElement('button');
     button.type = 'button';
     button.setAttribute(TRIGGER_ATTR, '');
-    button.setAttribute('aria-label', 'CleanTube 메뉴');
+    button.setAttribute('aria-label', text().menuLabel);
     button.setAttribute('aria-haspopup', 'menu');
     button.setAttribute('aria-expanded', 'false');
     button.innerHTML = ICON;
@@ -109,9 +128,10 @@ export async function createCommentMenu(
 
     // 유튜브는 <html dark>로 테마를 표시한다. Shadow DOM 안에서는 CSS로 못 보니 열 때마다 읽는다.
     root.classList.toggle('dark', document.documentElement.hasAttribute('dark'));
+    root.lang = text().lang;
     const who = document.createElement('div');
     who.className = 'who';
-    who.textContent = author.handle ?? author.channelId ?? '작성자를 못 읽음';
+    who.textContent = author.handle ?? author.channelId ?? text().unknownAuthor;
     root.replaceChildren(who);
 
     for (const item of itemsFor(author, comment)) {

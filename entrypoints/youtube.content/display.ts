@@ -33,12 +33,32 @@ export interface Display {
   mode: DisplayMode;
 }
 
+/** 가림막의 글. 화면 언어를 따른다(locales/의 overlay). */
+export interface OverlayText {
+  /** "차단된 댓글" */
+  blocked: string;
+  /** 가려져 있을 때의 pill. "숨긴 항목 보기" */
+  show: string;
+  /** 열어 봤을 때의 pill. "다시 가리기" */
+  hide: string;
+}
+
 interface Options {
   /** blur나 placeholder일 때 최상위 댓글의 답글까지 가릴지. */
   coverReplies: boolean;
   /** 사용자가 누른 변경이면 참. 스크롤로 새로 붙은 댓글은 거짓이라 바로 적용된다. */
   animate: boolean;
+  text: OverlayText;
+  /** 화면 언어. 가림막에 lang으로 달아 브라우저가 그 언어의 글꼴로 그리게 한다(유튜브 페이지의 언어와 다를 수 있다) */
+  lang: string;
 }
+
+/**
+ * 가림막에 쓸 글. 부를 때마다 받은 것으로 바꾼다. pill을 누를 때도 그때의 글을 써야 해서 모듈에 들고 있다.
+ * applyDisplay가 가림막을 만들기 전에 늘 먼저 채운다.
+ */
+let overlayText: OverlayText;
+let overlayLang: string;
 
 /**
  * 댓글 하나의 표시 상태를 맞춘다. display가 null이면 차단되지 않은 댓글.
@@ -49,6 +69,8 @@ interface Options {
  * - blur, placeholder: 부모가 자리에 남으니 그 댓글만 가려도 된다. coverReplies면 스레드 전체.
  */
 export function applyDisplay(comment: HTMLElement, display: Display | null, options: Options): void {
+  overlayText = options.text;
+  overlayLang = options.lang;
   // 스레드의 상태는 그 스레드의 최상위 댓글만 정한다. 답글은 스레드를 건드리지 않는다.
   const thread = comment.closest(REPLIES_SELECTOR)
     ? null
@@ -145,8 +167,11 @@ const coverAnimations = new WeakMap<Element, Animation[]>();
 function setCover(target: HTMLElement, mode: Cover | null, animate: boolean): void {
   const current = target.getAttribute(COVER_ATTR);
   if (current === mode) {
-    // 유튜브가 요소를 다시 그리면서 가림막을 떨어뜨렸을 수 있다
-    if (mode !== null && !overlayOf(target)) target.prepend(createOverlay(target));
+    if (mode === null) return;
+    // 유튜브가 요소를 다시 그리면서 가림막을 떨어뜨렸을 수 있다. 있으면 언어가 바뀌었을 수 있어서 글만 맞춘다
+    const overlay = overlayOf(target);
+    if (!overlay) target.prepend(createOverlay(target));
+    else labelOverlay(overlay, target);
     return;
   }
   change(target, animate, mode !== null, () => {
@@ -241,22 +266,29 @@ function createOverlay(target: HTMLElement): HTMLElement {
   overlay.setAttribute(OVERLAY_ATTR, '');
 
   const label = document.createElement('span');
-  label.textContent = '차단된 댓글';
-
   const pill = document.createElement('button');
   pill.type = 'button';
-  pill.textContent = '숨긴 항목 보기';
   pill.addEventListener('click', (e) => {
     e.stopPropagation();
     const revealing = !target.hasAttribute(REVEALED_ATTR);
     change(target, true, !revealing, () => {
       target.toggleAttribute(REVEALED_ATTR, revealing);
-      pill.textContent = revealing ? '다시 가리기' : '숨긴 항목 보기';
+      labelOverlay(overlay, target);
     });
   });
 
   overlay.append(label, pill);
+  labelOverlay(overlay, target);
   return overlay;
+}
+
+/** 가림막의 글을 지금 언어와 열림 상태에 맞춘다. 같으면 건드리지 않는다. 바꿀 때마다 DOM 변경이 생겨서. */
+function labelOverlay(overlay: Element, target: HTMLElement) {
+  const [label, pill] = overlay.children;
+  const pillText = target.hasAttribute(REVEALED_ATTR) ? overlayText.hide : overlayText.show;
+  if (overlay.getAttribute('lang') !== overlayLang) overlay.setAttribute('lang', overlayLang);
+  if (label && label.textContent !== overlayText.blocked) label.textContent = overlayText.blocked;
+  if (pill && pill.textContent !== pillText) pill.textContent = pillText;
 }
 
 // --- 숨김과 가림이 같이 쓰는 것 ---

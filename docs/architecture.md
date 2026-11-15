@@ -48,7 +48,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 | `youtube.content/panel.ts` + `panel.css` | (index.ts에 번들됨) | 디버그 패널. `panel.css`는 `?inline`으로 문자열로 가져와 Shadow DOM 안에만 넣는다 |
 | `youtube-main.content.ts` | content_scripts (`world: MAIN`, `document_start`) | 요청을 받으면 댓글 요소에 채널 ID를 속성으로 적는다 |
 | `popup/` | action.default_popup | 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정, 답글 범위와 디버그 패널 스위치 |
-| `options/` | options_ui (`open_in_tab`) | 차단 목록 페이지. 목록 보기와 편집. 탭 하나로 열린다 |
+| `options/` | options_ui (`open_in_tab`) | 설정 페이지. 차단 목록(보기와 편집)과 언어 두 탭. 브라우저 탭 하나로 열린다 |
 | `onboarding/` | (manifest에 없음, `onboarding.html`) | 첫 사용 안내. 처음 설치하면 백그라운드가 탭으로 연다 |
 | `background.ts` | background (`service_worker`) | 처음 설치하면(`runtime.onInstalled`, `reason === 'install'`) 첫 사용 안내 탭을 연다. 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화" |
 
@@ -127,6 +127,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
 | `display.temporary` | 같음 | 임시 차단된 댓글의 표시 방법. 기본 `blur` |
 | `coverReplies` | boolean | `blur`나 `placeholder`일 때 최상위 댓글의 답글까지 가릴지. 기본 꺼짐. `hide`는 이 값과 상관없이 스레드째 숨긴다 |
 | `debugPanel` | boolean | 유튜브 화면 오른쪽에 디버그 패널을 띄울지. 기본 꺼짐 |
+| `language` | `'auto' \| 'en' \| 'ko' \| 'ja' \| 'zh-CN' \| 'zh-TW'` | 화면 언어. 기본 `auto`(브라우저 언어를 따름). 아래 "언어" |
 
 `sync:`는 `chrome.storage.sync`라 같은 크롬 계정의 다른 기기와 동기화된다.
 
@@ -134,6 +135,18 @@ chrome.storage.sync blocked.00 ~ blocked.31
 - `updateSettings(patch)` 최신 값을 다시 읽어 병합한 뒤 저장하고, 병합한 결과를 돌려준다. 다른 창에서 바꾼 값을 덮어쓰지 않기 위해서다. `display`는 한쪽만 넘겨도 된다(`SettingsPatch`).
 
 `fallback`은 값이 통째로 없을 때만 쓰인다. 전에 저장된 객체에는 나중에 추가한 필드가 빠져 있으므로, 읽고 구독하는 함수가 `DEFAULT_SETTINGS` 위에 덮어 쓴다. `display`는 안쪽 객체라 한 겹 더 덮어 쓴다.
+
+### 언어: `utils/i18n.ts`, `locales/`
+
+화면의 글은 전부 `locales/`의 언어 파일에 있다. `en.ts`가 기준이고 `ko.ts`, `ja.ts`, `zh-CN.ts`, `zh-TW.ts`는 `satisfies Messages`로 같은 모양을 지킨다(빠진 문구는 타입 검사가, 빈 문구는 `tests/i18n.test.ts`가 잡는다). 숫자가 들어가는 문구는 함수다. 언어마다 복수형과 어순이 달라서.
+
+- `resolveLocale(setting, uiLanguage)` 설정이 `auto`면 브라우저 언어의 앞부분(`ko`, `ja`, `zh`)으로 고르고, 없는 언어는 영어. 중국어는 대만·홍콩·마카오와 `zh-Hant`면 번체(`zh-TW`), 나머지는 간체(`zh-CN`). 브라우저 API를 쓰지 않는 순수 함수라 브라우저 언어(`browser.i18n.getUILanguage()`)는 부르는 쪽이 넘긴다.
+- `messagesFor(locale)` 그 언어의 문구 객체(`t`).
+- 브라우저의 `chrome.i18n`은 늘 브라우저 언어를 따라 고른 언어로 바꿀 수 없어서 쓰지 않는다. manifest의 이름과 설명만 `public/_locales`(`__MSG_extName__`, `__MSG_extDescription__`, 기본 영어)에 있다. manifest가 그것만 읽을 수 있다.
+- 확장 페이지(팝업, 설정, 첫 사용 안내)는 맨 바깥의 `I18nProvider`(`hooks/useI18n.tsx`)가 설정을 구독해 `useI18n()`으로 `{ locale, t, setting, browserLocale }`을 준다. 설정을 읽기 전에는 아무것도 그리지 않는다(브라우저 언어로 그렸다가 바뀌며 깜박이지 않게). `<html lang>`도 맞춘다.
+- 콘텐츠 스크립트는 `index.ts`가 `locale`과 `t`를 들고 `watchSettings()`에서 다시 고른다. 메뉴·가림막·패널에는 글과 `lang`을 넘긴다. 언어를 바꾸면 열려 있는 유튜브 탭도 다시 불러오지 않고 바뀐다(이미 붙은 가림막의 글과 메뉴 버튼 이름까지).
+- 날짜는 `toLocaleString(locale)`, 이름순 정렬은 `localeCompare(…, locale)`로 화면 언어를 따른다.
+- 글꼴. 한글·가나·한자는 언어마다 글꼴 이름을 적은 목록을 쓴다. 확장 페이지는 `base.css`의 `--cjk`(`:lang()`으로 바뀜), 유튜브 화면은 `style.css`가 페이지에 두는 `--cleantube-cjk-*`이고 메뉴·패널의 Shadow DOM으로도 물려받는다. 이유는 [decisions.md](decisions.md) "다국어".
 
 ## 콘텐츠 스크립트
 
@@ -148,14 +161,14 @@ chrome.storage.sync blocked.00 ~ blocked.31
    - 전체 스캔은 150ms에 한 번으로 묶는다. 새로 붙은 댓글은 위에서 바로 처리하므로 이 스캔은 안전망이다. 실측에서 간격은 비용을 바꾸지 않았다 ([decisions.md](decisions.md) "스캔 스케줄링 실측").
    - 우리 요소(메뉴 버튼, 가림막, 메뉴와 패널의 Shadow DOM 호스트)를 넣거나 뺀 것뿐이거나 그 안에서 일어난 변경이면 스캔을 걸지 않는다. 스캔이 버튼과 가림막을 넣는 것도 DOM 변경이라, 거르지 않으면 스캔이 스캔을 부른다.
 2. `watchBlocked()`. 차단 목록 페이지, 패널, 메뉴 어디서 차단 목록을 바꾸든 즉시 다시 스캔한다. 사용자가 누른 변경이라 애니메이션을 켠다.
-3. `watchSettings()`. 표시 방법이 바뀌었을 수 있으니 다시 스캔한다.
+3. `watchSettings()`. 표시 방법이 바뀌었을 수 있으니 다시 스캔한다. 언어도 다시 고르고, 바뀌었으면 패널을 다시 그린다.
 4. 만료 타이머. 가장 먼저 풀리는 임시 차단 시각에 맞춰 다시 스캔한다. 스캔은 DOM이 바뀔 때만 돌아서, 타이머가 없으면 기간이 끝나도 화면이 바뀔 때까지 가려져 있다. `setTimeout`의 최대 지연(약 24.8일)을 넘는 기간은 그만큼씩 끊어서 다시 건다.
 
 `applyAll()`은 먼저 페이지 세계에 채널 ID를 적어 달라고 요청한다. 그다음 모든 댓글 요소를 돌면서 `applyOne()`을 부른다. `applyOne()`은 작성자를 읽어 `findBlock()`에 넘기고, 걸린 항목이 영구냐 임시냐에 따라 설정에서 표시 방법을 골라 `applyDisplay()`에 넘기고, 메뉴 버튼이 없으면 붙인다. 읽은 값과 결과는 줄 목록으로 모아 패널에 넘긴다.
 
 ### 표시 방법: `youtube.content/display.ts`
 
-`applyDisplay(comment, display, options)` 하나가 댓글의 표시 상태를 맞춘다. 속성만 붙이고, 모양은 전부 `style.css`에 있다.
+`applyDisplay(comment, display, options)` 하나가 댓글의 표시 상태를 맞춘다. 속성만 붙이고, 모양은 전부 `style.css`에 있다. `options`의 `text`(가림막의 글)와 `lang`(화면 언어)은 부를 때마다 받아 모듈에 들고, 이미 있는 가림막도 다를 때만 글과 `lang`을 고친다.
 
 | 표시 방법 | 속성 | 붙는 곳 |
 |---|---|---|
@@ -273,6 +286,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
   - 버튼은 `runtime.openOptionsPage()`를 부른다. 차단 목록 페이지가 이미 열려 있으면 새 탭을 만들지 않고 그 탭으로 간다.
   - 동기화 한도 안내가 있으면 그 아래에 한 줄. "오래전에 차단한 n명은 다른 PC와 동기화 안 됨" 또는 "동기화 공간 n% 사용 중"
 - `entrypoints/onboarding/App.tsx` 첫 사용 안내. 네 쪽을 이전·다음으로 넘긴다. ① 차단하는 법(장면) ② 영구 차단 표시 방법 ③ 임시 차단 기간과 표시 방법 ④ 고른 것 요약과 "유튜브로 가기". 이유는 [decisions.md](decisions.md) "첫 사용 안내".
+  - 맨 위 줄 오른쪽에서 언어를 고른다(브라우저 언어 따름 + 다섯 언어). 고르면 바로 저장되고 이 페이지와 열린 다른 화면이 모두 그 언어로 바뀐다. 예시 댓글도 언어마다 따로 있다(`locales/`의 `samples`).
   - 1쪽 장면(`HowToBlock`). 가짜 커서가 댓글로 다가가면 CleanTube 버튼이 나타나고, 버튼을 누르면 메뉴가 열린다. 5.5초마다 되풀이한다. 움직임은 `motion.ts`의 `playHowTo`가 Web Animations API로 건다(`id`가 `how-cursor`, `how-trigger`, `how-menu`). 커서가 갈 자리는 걸 때마다 실제 댓글 글과 버튼의 위치를 재서 정하고, 장면 크기가 바뀌면(`ResizeObserver`) 다시 재서 하던 데서 이어 간다. 움직임 줄이기(`prefers-reduced-motion`)면 장면을 걸지 않아 메뉴가 열린 정지 화면이고, 설정이 바뀌면 바로 멈추거나 다시 돈다. 그림 전체가 `aria-hidden`이고 `inert`다.
   - 2·3쪽(`ModeStep`)의 표시 방법은 아무 칸도 고르지 않은 상태로 시작한다. 이 안내에서 고른 것은 `App`의 `chosen`에 따로 들고, 고르면 설정에도 저장한다. 고르지 않고 넘어가면 저장된 설정이 그대로 남는다. 이전 쪽으로 돌아가면 고른 칸과 그 모습이 그대로다.
   - 같은 쪽에 "답글도 함께 가리기" 스위치가 있다. 설정은 하나라 두 쪽의 스위치가 같은 값이다. 스위치는 늘 자리에 있고, 아직 안 골랐거나 완전히 숨기기면 꺼 둔다(`disabled`). 자리가 생겼다 없어지면 아래 예시가 들썩여서다. 설명 한 줄도 늘 한 줄 자리를 둔다.
@@ -283,7 +297,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
     - `display.ts`가 넣는 가림막과 속성은 React가 모르는 DOM이다. 이 요소들의 React 자식은 바뀌지 않아서 서로 부딪치지 않는다.
   - `main.tsx`가 `base.css` 다음에 `youtube.content/style.css`와 `menu.css`를 가져온다. 예시의 가림막, 메뉴 버튼, 메뉴가 유튜브에서와 같은 CSS로 그려진다. 같은 무게의 규칙(버튼 hover)은 뒤에 온 유튜브 쪽이 이긴다.
   - 예시의 테마는 `prefers-color-scheme`를 따라 `<html dark>`와 메뉴의 `.dark`를 켠다. style.css와 menu.css가 유튜브처럼 그것으로 어두운 테마를 받는다.
-- `entrypoints/options/App.tsx` 차단 목록 페이지. `BlockList` 하나와 댓글 메뉴로도 차단할 수 있다는 안내. 맨 위 줄에 로고와 "차단 목록", 그 아래는 가운데 760px 한 단이다. 목록을 팝업이 아니라 여기 둔 이유는 [decisions.md](decisions.md) "차단 목록은 옵션 페이지에, 설정은 팝업에".
+- `entrypoints/options/App.tsx` 설정 페이지. "차단 목록"과 "언어" 두 탭이다(`role="tablist"`, 화살표로 옮긴다). 주소가 `#language`면 언어 탭으로 열리고, 탭을 바꾸면 주소에 적는다(`replaceState`). 차단 목록 탭은 `BlockList` 하나와 댓글 메뉴로도 차단할 수 있다는 안내, 언어 탭은 브라우저 언어 따름과 다섯 언어 중 하나를 고르는 라디오다. 언어 이름은 그 언어로 적고 `lang`을 단다. 맨 위 줄에 로고와 "설정", 그 아래는 가운데 760px 한 단이다. 목록을 팝업이 아니라 여기 둔 이유는 [decisions.md](decisions.md) "차단 목록은 옵션 페이지에, 설정은 팝업에".
   - 동기화 한도 안내가 있으면 목록 위에 팝업보다 긴 글로 띄운다. 이 PC에서는 그대로 가려진다는 것, 다 차면 무엇이 빠지는지까지.
 - `hooks/useSyncWarning.ts` `loadSyncStatus()`로 읽고 `watchSyncStatus()`로 구독해 `syncWarning()`의 안내를 돌려준다.
 - `utils/duration.ts` `HOUR_MS`, `DAY_MS`, `formatDuration(ms)`. 팝업과 댓글 메뉴가 같은 표기("7일", "3시간")를 쓰게 한다.
@@ -302,7 +316,8 @@ chrome.storage.sync blocked.00 ~ blocked.31
 - `assets/base.css` 팝업, 차단 목록 페이지, 첫 사용 안내의 기본 스타일. 색 변수, 글꼴, 버튼, 입력창, 여러 칸 버튼(`.segmented`), 영구·임시 표시 네모(`.kind-mark`), 탭 페이지의 맨 위 줄(`.page-bar`), 이름표 붙은 설정 칸(`.field`), 스위치(`.switch`), 안내 상자(`.notice`). 색은 뜻이 있을 때만 쓴다. 검정(`--fg`)은 영구 차단, 호박색(`--temp`)은 임시 차단이다. `.temporary` 안에 있으면 네모와 고른 칸이 호박색이 된다. 고정폭 글꼴 IBM Plex Mono(`--mono`, `.mono`)는 `@fontsource/ibm-plex-mono`의 라틴 글자 파일만 가져와 숫자와 @핸들·채널 ID에 쓴다. 이유는 [decisions.md](decisions.md) "팝업과 차단 목록 페이지의 디자인: 계기판".
 - `components/Segmented.tsx` 여러 칸 중 하나를 고르는 버튼 묶음. `aria-pressed`로 고른 칸을 알린다. 이미 고른 칸을 다시 누르면 아무것도 하지 않는다. `value`가 null이면 아무 칸도 고르지 않은 상태다. 팝업과 첫 사용 안내의 표시 방법·기간, 차단 목록의 정렬이 쓴다.
   - 칸 너비가 같은 묶음(`sliding`, 기본)은 고른 칸 뒤에 색 덩어리(`.segmented-thumb`)를 깔고, 고른 칸이 바뀌면 덩어리가 200ms 동안 미끄러져 옮겨 간다. 칸 수와 순서는 `--count`, `--index`로 CSS에 넘긴다. 아무것도 고르지 않았으면 덩어리를 감춘다. 칸 너비가 글자마다 다른 정렬 버튼은 `sliding={false}`로 고른 칸만 칠한다.
-- `components/displayModes.ts` 표시 방법의 이름(완전히 숨기기, 흐리게, 문구로 바꾸기). 팝업과 첫 사용 안내가 쓴다.
+- `components/displayModes.ts` 표시 방법의 선택지와 이름(`displayModeOptions(t)`, `displayModeLabel(mode, t)`), 언어 선택지(`languageOptions(t, browserLocale)`). 팝업, 설정, 첫 사용 안내가 쓴다.
+- `hooks/useI18n.tsx` `I18nProvider`와 `useI18n()`. 위 "언어".
 - `components/DurationField.tsx` 임시 차단 기간. 1일·7일·30일·직접 네 칸이고 ms 하나로 저장한다. 직접을 고르면 "기간" 줄 오른쪽에 숫자와 시간/일이 나오고, 고르기만 해서는 저장하지 않는다. 팝업과 첫 사용 안내가 쓴다.
 - `components/Switch.tsx` 켜고 끄는 설정 한 줄. `role="switch"`인 체크박스를 CSS로 그린다. 제목과 설명은 `aria-labelledby`·`aria-describedby`로 잇는다. `disabled`면 자리는 그대로 두고 흐리게 보인다. 팝업과 첫 사용 안내가 쓴다.
 - `components/Logo.tsx` 팝업과 차단 목록 페이지 맨 위의 로고. 툴바 아이콘과 같은 그림이고 글자색을 따라간다.

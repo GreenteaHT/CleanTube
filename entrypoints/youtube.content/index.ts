@@ -1,6 +1,7 @@
-import { defineContentScript } from '#imports';
+import { browser, defineContentScript } from '#imports';
 import { blockAuthor, loadBlocked, removeBlock, unblockAuthor, watchBlocked } from '@/utils/blocklist';
 import { formatDuration } from '@/utils/duration';
+import { messagesFor, resolveLocale, type Locale, type Messages } from '@/utils/i18n';
 import { entryKey, findBlock, type Author, type BlockEntry } from '@/utils/matcher';
 import { loadSettings, watchSettings, type Settings } from '@/utils/settings';
 import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
@@ -20,6 +21,10 @@ export default defineContentScript({
   async main(ctx) {
     let settings: Settings = await loadSettings();
     let blocked: BlockEntry[] = await loadBlocked();
+    // 메뉴, 가림막, 패널의 언어. 설정이 바뀌면 아래 watch에서 다시 고른다
+    const uiLanguage = browser.i18n.getUILanguage();
+    let locale: Locale = resolveLocale(settings.language, uiLanguage);
+    let t: Messages = messagesFor(locale);
     let rows: PanelRow[] = [];
     let panel: Panel | undefined;
     let panelMounting = false;
@@ -28,7 +33,7 @@ export default defineContentScript({
     let expiryTimer: number | undefined;
 
     // 댓글마다 붙는 메뉴. 항목은 아래 menuItems()에 한 줄씩 추가한다.
-    const menu = await createCommentMenu(ctx, menuItems, readAuthor);
+    const menu = await createCommentMenu(ctx, menuItems, readAuthor, () => ({ ...t.youtube, lang: locale }));
 
     // DOM 변경이 몰려와도 150ms에 한 번만 스캔한다. 새로 붙은 댓글은 아래 콜백이 바로 처리하므로 이 스캔은 안전망이다.
     // 실측(2026-10-06)에서 간격은 0~500ms 어디든 비용이 같았고, 150ms는 페이지 로드 직후의 몰림만 걸러 준다. docs/decisions.md 참고.
@@ -70,9 +75,13 @@ export default defineContentScript({
     );
     ctx.onInvalidated(
       watchSettings((next) => {
+        const languageChanged = next.language !== settings.language;
         settings = next;
-        // 표시 방법이 바뀌었을 수 있다
+        locale = resolveLocale(settings.language, uiLanguage);
+        t = messagesFor(locale);
+        // 표시 방법이 바뀌었을 수 있다. 언어가 바뀌었으면 이미 붙은 가림막과 메뉴 버튼의 글도 여기서 바뀐다
         applyAll(true);
+        if (languageChanged) panel?.redraw();
         void syncPanel();
       }),
     );
@@ -98,7 +107,7 @@ export default defineContentScript({
         key: entryKey(hit),
         mode: hit.until === undefined ? settings.display.permanent : settings.display.temporary,
       };
-      applyDisplay(el, display, { coverReplies: settings.coverReplies, animate });
+      applyDisplay(el, display, { coverReplies: settings.coverReplies, animate, text: t.overlay, lang: locale });
       menu.attach(el);
       return { author, hit, comment: el };
     }
@@ -131,10 +140,14 @@ export default defineContentScript({
       if (settings.debugPanel && !panel) {
         if (panelMounting) return;
         panelMounting = true;
-        const created = await createPanel(ctx, {
-          onBlock: (author, comment) => block(author, comment),
-          onUnblock: (entry) => void removeBlock(entry),
-        });
+        const created = await createPanel(
+          ctx,
+          {
+            onBlock: (author, comment) => block(author, comment),
+            onUnblock: (entry) => void removeBlock(entry),
+          },
+          () => ({ locale, text: t.youtube.panel }),
+        );
         panelMounting = false;
         // 만드는 동안 꺼졌을 수 있다
         if (!settings.debugPanel) {
@@ -162,13 +175,17 @@ export default defineContentScript({
       const temporary = hit !== null && hit.until !== undefined;
       const durationMs = settings.temporaryDurationMs;
       const unblock = () => void unblockAuthor(author);
+      const text = t.youtube;
       return [
         permanent
-          ? { label: '영구 차단 해제', run: unblock }
-          : { label: '영구 차단', run: () => block(author, comment) },
+          ? { label: text.unblockPermanent, run: unblock }
+          : { label: text.blockPermanent, run: () => block(author, comment) },
         temporary
-          ? { label: '임시 차단 해제', run: unblock }
-          : { label: `임시 차단 · ${formatDuration(durationMs)}`, run: () => block(author, comment, durationMs) },
+          ? { label: text.unblockTemporary, run: unblock }
+          : {
+              label: text.blockTemporary(formatDuration(durationMs, t.common)),
+              run: () => block(author, comment, durationMs),
+            },
       ];
     }
 
