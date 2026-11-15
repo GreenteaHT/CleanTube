@@ -141,6 +141,29 @@ describe('parseEntry', () => {
     expect(parseEntry('  ')).toBeNull();
     expect(parseEntry('@')).toBeNull();
   });
+
+  it('채널 주소를 붙여 넣으면 그 안의 핸들을 꺼낸다', () => {
+    expect(parseEntry('https://www.youtube.com/@SanDiegoZoo')).toEqual({ handle: '@SanDiegoZoo' });
+    expect(parseEntry('youtube.com/@SanDiegoZoo/videos?view=0')).toEqual({ handle: '@SanDiegoZoo' });
+    expect(parseEntry('@SanDiegoZoo/featured')).toEqual({ handle: '@SanDiegoZoo' });
+  });
+
+  it('주소의 핸들이 %로 인코딩돼 있으면 푼다', () => {
+    expect(parseEntry('https://www.youtube.com/@%EA%B9%80%EB%AC%B4%EC%8B%9D-i9t')).toEqual({ handle: '@김무식-i9t' });
+    expect(parseEntry('https://www.youtube.com/@100%')).toEqual({ handle: '@100%' });
+  });
+
+  it('채널 주소에 채널 ID가 있으면 채널 ID로', () => {
+    expect(parseEntry(`https://www.youtube.com/channel/${ID}`)).toEqual({ channelId: ID });
+    expect(parseEntry(`youtube.com/channel/${ID}/about`)).toEqual({ channelId: ID });
+  });
+
+  it('채널을 알 수 없는 주소와 공백이 있는 글은 null. 넣어도 아무에게도 걸리지 않는다', () => {
+    expect(parseEntry('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
+    expect(parseEntry('https://www.youtube.com/c/SanDiegoZoo')).toBeNull();
+    expect(parseEntry(`https://www.youtube.com/channel/${ID}x`)).toBeNull();
+    expect(parseEntry('@San Diego Zoo')).toBeNull();
+  });
 });
 
 describe('entryKey', () => {

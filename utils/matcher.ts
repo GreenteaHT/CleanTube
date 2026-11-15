@@ -38,13 +38,39 @@ export interface BlockSource {
 const normalizeHandle = (s: string) => s.trim().toLowerCase().replace(/^@/, '');
 
 const CHANNEL_ID = /^UC[\w-]{22}$/;
+/** 채널 주소에서 채널 ID가 있는 자리. youtube.com/channel/UC… */
+const URL_CHANNEL_ID = /\/channel\/(UC[\w-]{22})(?![\w-])/;
+/** 채널 주소에서 핸들이 있는 자리. youtube.com/@handle, youtube.com/@handle/videos */
+const URL_HANDLE = /(?:^|\/)(@[^/?#]+)/;
 
-/** 사용자가 손으로 입력한 글자를 차단 항목으로. 채널 ID 모양이면 채널 ID, 아니면 핸들. 비어 있으면 null. */
+/**
+ * 사용자가 손으로 입력한 글자를 차단 항목으로. 채널 ID 모양이면 채널 ID, 아니면 핸들.
+ * 채널 주소를 붙여 넣었으면 그 안의 채널 ID나 핸들을 꺼낸다. 주소를 통째로 핸들로 넣으면 아무에게도 걸리지 않는 항목이 된다.
+ * 비어 있거나 핸들일 수 없는 글자(공백이 있는 글, 채널을 알 수 없는 주소)면 null.
+ */
 export function parseEntry(text: string): BlockEntry | null {
   const value = text.trim();
   if (CHANNEL_ID.test(value)) return { channelId: value };
-  const handle = normalizeHandle(value);
-  return handle ? { handle: `@${value.replace(/^@/, '')}` } : null;
+  if (!value.includes('/')) return handleEntry(value);
+  const channelId = URL_CHANNEL_ID.exec(value)?.[1];
+  if (channelId) return { channelId };
+  const handle = URL_HANDLE.exec(value)?.[1];
+  return handle ? handleEntry(decode(handle)) : null;
+}
+
+/** 적은 대로 저장한다. 대소문자는 비교할 때 무시한다. */
+function handleEntry(text: string): BlockEntry | null {
+  const name = text.replace(/^@/, '');
+  return name && !/\s/.test(name) ? { handle: `@${name}` } : null;
+}
+
+/** 주소창에서 복사한 주소는 한글 같은 글자가 %로 인코딩돼 있다. 풀 수 없는 글자면 그대로 둔다. */
+function decode(text: string): string {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
 }
 
 /** 같은 대상을 가리키는 항목인지 가리는 키. 목록에서 중복을 막고 지울 때 쓴다. */
