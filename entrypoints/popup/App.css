@@ -29,6 +29,23 @@
   font-weight: 600;
 }
 
+/* 맨 위 줄 오른쪽의 "설정". "차단 목록 관리"보다 덜 눈에 띄게 테두리 없이 */
+.popup .open-settings {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  margin-left: auto;
+  padding: 0 8px;
+  border-color: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.popup .open-settings:hover:not(:disabled) {
+  color: var(--fg);
+}
+
 /* 차단한 수와 차단 목록 페이지를 여는 버튼 */
 .popup .total {
   display: flex;

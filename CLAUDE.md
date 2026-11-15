@@ -17,7 +17,7 @@ WXT + React + TypeScript, Manifest V3. 기능을 하나씩 늘려 가는 중이�
 
 - `entrypoints/youtube.content/` 유튜브 페이지에서 댓글을 감시해 작성자가 차단 목록에 있으면 표시 방법에 맞는 속성을 붙인다. `display.ts`는 표시 방법 적용(무엇을 가릴지, 애니메이션, 가림막), `source.ts`는 차단한 댓글의 주소·제목·내용 읽기, `menu.ts`는 댓글 메뉴, `panel.ts`는 디버그 패널(둘 다 Shadow DOM, React 없음).
 - `entrypoints/youtube-main.content.ts` 페이지(MAIN) 세계에서 돈다. 유튜브가 댓글 요소에 달아 둔 데이터에서 채널 ID를 읽어 `data-cleantube-channel-id` 속성으로 적는다.
-- `entrypoints/popup/` React UI. 차단한 수와 차단 목록 페이지를 여는 버튼, 동기화 한도 안내, 표시 방법, 디버그 패널 토글. `useSettings`, `useBlocked`, `useSyncWarning` 훅으로 읽고 쓴다.
+- `entrypoints/popup/` React UI. 차단한 수, 설정 페이지의 차단 목록 탭과 언어 탭을 여는 두 버튼("차단 목록 관리", 맨 위의 "설정"), 동기화 한도 안내, 표시 방법, 디버그 패널 토글. `useSettings`, `useBlocked`, `useSyncWarning` 훅으로 읽고 쓴다.
 - `entrypoints/options/` React UI. 설정 페이지. 브라우저 탭 하나로 열린다. "차단 목록"과 "언어" 두 탭. 차단 목록 보기와 편집, 언어 고르기는 여기에만 있다. `useBlocked`, `useSettings` 훅으로 읽고 쓴다.
 - `entrypoints/onboarding/` React UI. 첫 사용 안내. 처음 설치하면 탭으로 열린다. 차단하는 법을 보여 주고 표시 방법·기간·답글 범위를 예시 댓글을 보며 고르게 한다. 예시 댓글은 유튜브와 같은 태그 이름으로 그리고 `display.ts`의 `applyDisplay`와 `style.css`·`menu.css`를 그대로 써서 유튜브에서처럼 가리고 움직인다. 그쪽을 고치면 예시도 같이 확인한다.
 - `entrypoints/background.ts` 서비스 워커. 처음 설치하면 첫 사용 안내 탭을 열고, 차단 목록을 다른 PC와 맞춘다. 차단 목록의 `storage.sync`는 여기서만 쓴다.

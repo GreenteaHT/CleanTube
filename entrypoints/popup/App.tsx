@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { browser } from '#imports';
 import DurationField from '@/components/DurationField';
 import Logo from '@/components/Logo';
 import Segmented from '@/components/Segmented';
@@ -11,12 +10,13 @@ import { useSettings } from '@/hooks/useSettings';
 import { useSyncWarning } from '@/hooks/useSyncWarning';
 import { isExpired } from '@/utils/matcher';
 import type { DisplayMode } from '@/utils/settings';
+import { openSettings } from './openSettings';
 import './App.css';
 
 /**
  * 툴바 아이콘을 눌렀을 때 뜨는 팝업. 차단한 수, 영구/임시 차단 설정, 답글 범위, 디버그 패널 토글.
- * 차단 목록은 여기 없고 차단 목록 페이지(entrypoints/options)에 있다. 팝업에는 그 페이지를 여는 버튼만 둔다.
- * 언어 설정도 여기 없고 그 페이지의 설정 탭에 있다.
+ * 차단 목록과 언어는 여기 없고 설정 페이지(entrypoints/options)의 두 탭에 있다. 팝업에는 그 탭을 여는 버튼만 둔다.
+ * "차단 목록 관리"는 차단 목록 탭, 맨 위 줄의 "설정"은 언어 탭을 연다. 진입로가 차단 목록 하나뿐이면 다른 설정을 찾을 길이 없어서.
  */
 export default function App() {
   const { t } = useI18n();
@@ -42,6 +42,15 @@ export default function App() {
       <header className="bar">
         <Logo />
         <span className="wordmark mono">CleanTube</span>
+        <button type="button" className="open-settings" onClick={() => void openSettings('language')}>
+          <svg className="icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <path d="M2 3.5h3M8 3.5h4M2 7h6M11 7h1M2 10.5h1M6 10.5h6" />
+            <circle cx="6.5" cy="3.5" r="1.5" />
+            <circle cx="9.5" cy="7" r="1.5" />
+            <circle cx="4.5" cy="10.5" r="1.5" />
+          </svg>
+          {t.settings.title}
+        </button>
       </header>
 
       <section className="total">
@@ -50,7 +59,7 @@ export default function App() {
           <span className="unit">{t.common.blockedCount}</span>
         </p>
         {/* 이미 열려 있으면 새 탭을 만들지 않고 그 탭으로 간다 */}
-        <button type="button" className="open-list" onClick={() => browser.runtime.openOptionsPage()}>
+        <button type="button" className="open-list" onClick={() => void openSettings('blockList')}>
           {t.popup.manageList}
           <svg className="icon" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
             <path d="M4.5 2.5h5v5M9.5 2.5L3 9" />
