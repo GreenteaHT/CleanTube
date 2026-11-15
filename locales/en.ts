@@ -63,7 +63,6 @@ export const en = {
     enabled: 'Blocking',
     enabledHint: 'When off, blocked comments show as usual · No CleanTube button on comments',
     previewHide: 'Nothing left in its place',
-    previewBlur: 'Blurred comment example',
   },
   settings: {
     title: 'Settings',
@@ -118,7 +117,7 @@ export const en = {
     temporaryLead: "For people you'd rather not see for a while, like during an argument · Expires on its own",
     repliesDisabled: 'Available with blur or replace with text',
     repliesAlways: 'Hide completely always includes replies',
-    repliesShared: 'Shared by permanent and temporary blocks',
+    repliesOnly: (kind: string) => `Only for ${kind.toLowerCase()}s`,
     unchosen: (current: string) =>
       `Applies to the example below right away · If you skip, the current setting (${current}) stays`,
     captionHide: (handle: string) => `${handle}'s comment folds away with its replies · Nothing left in its place`,
@@ -127,10 +126,6 @@ export const en = {
     repliesCovered: 'Replies covered too',
     repliesVisible: 'Replies stay visible',
     doneTitle: "You're all set",
-    summaryReplies: 'Replies',
-    summaryRepliesAlways: 'Always hidden with hide completely',
-    summaryRepliesCovered: 'Covered too',
-    summaryRepliesVisible: 'Left visible',
     changeLater: 'To change later: CleanTube icon in the toolbar → popup',
     skip: 'Skip',
     back: 'Back',

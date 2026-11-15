@@ -30,17 +30,19 @@ export interface Settings {
   /** 영구 차단과 임시 차단을 각각 어떻게 보여 줄지. */
   display: { permanent: DisplayMode; temporary: DisplayMode };
   /**
-   * blur나 placeholder일 때, 최상위 댓글이 차단이면 그 답글까지 가릴지.
+   * 영구 차단과 임시 차단 각각, blur나 placeholder일 때 최상위 댓글이 차단이면 그 답글까지 가릴지.
    * hide는 이 값과 상관없이 스레드째 숨긴다. 댓글만 숨기면 "답글 N개"가 부모 없이 남기 때문이다.
+   * 처음에는 둘이 같이 쓰는 boolean 하나였다. 그렇게 저장된 값은 읽을 때 양쪽에 같은 값으로 옮긴다(withDefaults).
    */
-  coverReplies: boolean;
+  coverReplies: { permanent: boolean; temporary: boolean };
   /** UI 언어. 'auto'면 브라우저 언어를 따른다. 팝업, 차단 목록 페이지, 첫 사용 안내, 유튜브 화면의 메뉴·가림막·패널이 모두 따른다. */
   language: LanguageSetting;
 }
 
-/** updateSettings()에 넘기는 변경. display는 한쪽만 넘겨도 된다. */
-export type SettingsPatch = Partial<Omit<Settings, 'display'>> & {
+/** updateSettings()에 넘기는 변경. display와 coverReplies는 한쪽만 넘겨도 된다. */
+export type SettingsPatch = Partial<Omit<Settings, 'display' | 'coverReplies'>> & {
   display?: Partial<Settings['display']>;
+  coverReplies?: Partial<Settings['coverReplies']>;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -48,7 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   debugPanel: false,
   temporaryDurationMs: 7 * DAY_MS,
   display: { permanent: 'hide', temporary: 'blur' },
-  coverReplies: false,
+  coverReplies: { permanent: false, temporary: false },
   language: 'auto',
 };
 
@@ -76,6 +78,8 @@ export async function updateSettings(patch: SettingsPatch): Promise<Settings> {
     ...stored,
     ...patch,
     display: { ...stored.display, ...patch.display },
+    // 예전의 boolean 하나로 저장돼 있으면 펼칠 수 없어서 바꾸지 않은 쪽이 기본값이 된다. 먼저 양쪽으로 옮긴다
+    coverReplies: { ...readCoverReplies(stored.coverReplies), ...patch.coverReplies },
   };
   await settingsItem.setValue(next);
   return withDefaults(next);
@@ -99,6 +103,19 @@ function withDefaults(value: Partial<Settings> | null | undefined): Settings {
       permanent: isDisplayMode(display?.permanent) ? display.permanent : DEFAULT_SETTINGS.display.permanent,
       temporary: isDisplayMode(display?.temporary) ? display.temporary : DEFAULT_SETTINGS.display.temporary,
     },
+    coverReplies: readCoverReplies(value?.coverReplies),
     language: isLanguageSetting(value?.language) ? value.language : DEFAULT_SETTINGS.language,
+  };
+}
+
+/** 저장된 coverReplies. 예전 버전은 영구·임시가 같이 쓰는 boolean 하나로 적었다. */
+function readCoverReplies(value: unknown): Settings['coverReplies'] {
+  if (typeof value === 'boolean') return { permanent: value, temporary: value };
+  const fallback = DEFAULT_SETTINGS.coverReplies;
+  if (typeof value !== 'object' || value === null) return fallback;
+  const { permanent, temporary } = value as Partial<Record<'permanent' | 'temporary', unknown>>;
+  return {
+    permanent: typeof permanent === 'boolean' ? permanent : fallback.permanent,
+    temporary: typeof temporary === 'boolean' ? temporary : fallback.temporary,
   };
 }

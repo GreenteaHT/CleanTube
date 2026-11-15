@@ -47,7 +47,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 | `youtube.content/source.ts` | (index.ts에 번들됨) | 차단할 때 그 댓글의 주소, 영상 제목, 내용을 읽는다 |
 | `youtube.content/panel.ts` + `panel.css` | (index.ts에 번들됨) | 디버그 패널. `panel.css`는 `?inline`으로 문자열로 가져와 Shadow DOM 안에만 넣는다 |
 | `youtube-main.content.ts` | content_scripts (`world: MAIN`, `document_start`) | 요청을 받으면 댓글 요소에 채널 ID를 속성으로 적는다 |
-| `popup/` | action.default_popup | 차단 기능 스위치, 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정, 답글 범위와 디버그 패널 스위치 |
+| `popup/` | action.default_popup | 차단 기능 스위치, 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정(표시 방법, 답글 범위, 미리보기), 디버그 패널 스위치 |
 | `options/` | options_ui (`open_in_tab`) | 설정 페이지. 차단 목록(보기와 편집)과 언어 두 탭. 브라우저 탭 하나로 열린다 |
 | `onboarding/` | (manifest에 없음, `onboarding.html`) | 첫 사용 안내. 처음 설치하면 백그라운드가 탭으로 연다 |
 | `background.ts` | background (`service_worker`) | 처음 설치하면(`runtime.onInstalled`, `reason === 'install'`) 첫 사용 안내 탭을 연다. 업데이트되면 열려 있는 유튜브 탭에 새 콘텐츠 스크립트를 넣는다. 아래 "업데이트 뒤 다시 넣기". 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화". 차단 기능이 꺼져 있으면 툴바 아이콘을 회색으로 바꾼다. 아래 "꺼짐 아이콘" |
@@ -127,7 +127,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
 | `temporaryDurationMs` | number | 댓글 메뉴의 "임시 차단"이 차단하는 기간(ms). 기본 7일. 바꿔도 이미 걸어 둔 임시 차단은 그대로다 |
 | `display.permanent` | `'hide' \| 'blur' \| 'placeholder'` | 영구 차단된 댓글의 표시 방법. 기본 `hide` |
 | `display.temporary` | 같음 | 임시 차단된 댓글의 표시 방법. 기본 `blur` |
-| `coverReplies` | boolean | `blur`나 `placeholder`일 때 최상위 댓글의 답글까지 가릴지. 기본 꺼짐. `hide`는 이 값과 상관없이 스레드째 숨긴다 |
+| `coverReplies` | `{ permanent, temporary }` boolean | 영구·임시 각각, `blur`나 `placeholder`일 때 최상위 댓글의 답글까지 가릴지. 기본 둘 다 꺼짐. `hide`는 이 값과 상관없이 스레드째 숨긴다. 예전에는 둘이 같이 쓰는 boolean 하나였고, 그렇게 저장된 값은 읽을 때 양쪽에 같은 값으로 옮긴다 |
 | `debugPanel` | boolean | 유튜브 화면 오른쪽에 디버그 패널을 띄울지. 기본 꺼짐 |
 | `language` | `'auto' \| 'en' \| 'ko' \| 'ja' \| 'zh-CN' \| 'zh-TW'` | 화면 언어. 기본 `auto`(브라우저 언어를 따름). 아래 "언어" |
 
@@ -218,7 +218,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
 | 표시 방법 | 속성 | 붙는 곳 |
 |---|---|---|
 | `hide` | `data-cleantube-blocked="<항목 키>"` | 답글이면 그 답글, 최상위 댓글이면 스레드 전체 |
-| `blur` | `data-cleantube-cover="blur"` | 그 댓글. `coverReplies`가 켜져 있고 최상위 댓글이면 스레드 전체 |
+| `blur` | `data-cleantube-cover="blur"` | 그 댓글. 걸린 차단의 종류(영구·임시)에 해당하는 `coverReplies`가 켜져 있고 최상위 댓글이면 스레드 전체 |
 | `placeholder` | `data-cleantube-cover="placeholder"` | 위와 같음 |
 
 - `hide`가 스레드째인 이유. 답글 묶음(`ytd-comment-replies-renderer`, "답글 N개" 버튼 포함)이 댓글 요소의 자식이 아니라 형제여서, 댓글만 숨기면 부모 없는 답글 묶음이 남는다. `blur`와 `placeholder`는 부모가 자리에 남으니 그 댓글만 가려도 된다.
@@ -331,9 +331,11 @@ chrome.storage.sync blocked.00 ~ blocked.31
 
 - `hooks/useSettings.ts` `loadSettings()`로 초기값을 읽고 `watchSettings()`로 구독한다. `update(patch)`는 `updateSettings()`를 부르고 그 결과로 바로 그린다.
 - `hooks/useBlocked.ts` `loadBlocked()`로 읽고 `watchBlocked()`로 구독한다. 쓰기는 `blocklist.ts`의 `addBlock`/`removeBlock`을 그대로 내보낸다. 팝업은 읽기만 하고 차단 목록 페이지가 읽고 쓴다.
-- `entrypoints/popup/App.tsx` 맨 위 줄의 차단 기능 스위치, 차단한 수와 "차단 목록 관리" 버튼, 영구 차단 설정(표시 방법), 임시 차단 설정(기간, 표시 방법), 답글도 함께 가리기와 디버그 패널 스위치. 폭 360px이고 높이는 크롬 팝업 한도인 600px 안에 들어가게 잡았다.
+- `entrypoints/popup/App.tsx` 맨 위 줄의 차단 기능 스위치, 차단한 수와 "차단 목록 관리" 버튼, 영구 차단 설정(표시 방법, 답글 범위), 임시 차단 설정(기간, 표시 방법, 답글 범위), 디버그 패널 스위치. 폭 360px이고 높이는 크롬 팝업 한도인 600px 안에 들어가게 잡았다. 실측 590px(다섯 언어, 기간 "직접"을 펼친 것까지). 동기화 한도 안내가 뜨면 넘어서 조금 스크롤된다.
   - 차단 기능 스위치는 맨 위 줄 오른쪽 끝, "설정" 옆에 스위치만 있다(`Switch`의 `hideText`). 이름과 설명은 화면 읽기 프로그램이 읽고, 이름은 마우스를 올리면 나온다. 꺼도 아래 설정은 그대로 바꿀 수 있다.
-  - 표시 방법은 세 칸 버튼(`Segmented`)으로 고르고, 그 아래에 고른 방법으로 댓글이 어떻게 보이는지 한 줄 미리보기(`ModePreview`)가 있다. 미리보기는 `aria-hidden`이다.
+  - 표시 방법은 세 칸 버튼(`Segmented`)으로 고른다. "답글도 함께 가리기"는 "표시 방법" 이름표 줄 오른쪽의 작은 스위치(`Switch`의 `compact`)다. "기간" 줄의 직접 입력과 같은 자리라 줄이 늘지 않는다. 설명은 화면 읽기 프로그램이 읽고 마우스를 올리면 나온다. 완전히 숨기기면 켜진 채 바꿀 수 없다(첫 사용 안내와 같다).
+  - 그 아래 미리보기(`ModePreview`)는 유튜브 댓글 하나와 답글 하나를 작게 그린다. 부품은 첫 사용 안내의 예시와 같은 `components/YoutubeComment.tsx`이고, 가리는 일도 `applyDisplay`와 `style.css`가 한다. 그래서 표시 방법이나 답글 스위치를 바꾸면 유튜브에서처럼 움직인다. 예시 글은 첫 사용 안내와 같다(영구는 스포일러, 임시는 말다툼). 처음 그릴 때의 높이를 `min-height`로 붙잡아 어떤 모습이든 팝업 높이가 그대로다. 완전히 숨기기로 스레드가 빠지면 빈 자리에 "이 자리에 아무것도 안 남음"이 나온다. 문구로 바꾸기의 한 줄은 유튜브에서의 위아래 여백만 뺐다. 그대로면 작게 그린 댓글보다 높아 팝업이 길어진다. 미리보기는 `aria-hidden`이고 `inert`라 탭 이동과 마우스에서 빠진다.
+  - `main.tsx`가 `base.css` 다음에 `youtube.content/style.css`를 가져오고, `usePrefersDark`가 `<html dark>`를 켠다. 첫 사용 안내와 같다.
   - 기간은 1일·7일·30일·직접 네 칸이고 ms 하나로 저장한다. 직접을 고르면 "기간" 줄 오른쪽에 숫자와 시간/일이 나온다. 직접을 고르기만 해서는 저장하지 않는다.
   - 스위치는 `role="switch"`인 체크박스를 CSS로 그린다. 줄 어디를 눌러도 바뀐다.
   - 수는 만료된 임시 차단을 빼고 센다. 차단 목록 페이지가 보여 주는 수와 같다.
@@ -343,14 +345,15 @@ chrome.storage.sync blocked.00 ~ blocked.31
   - 맨 위 줄 오른쪽에서 언어를 고른다(브라우저 언어 따름 + 다섯 언어). 고르면 바로 저장되고 이 페이지와 열린 다른 화면이 모두 그 언어로 바뀐다. 예시 댓글도 언어마다 따로 있다(`locales/`의 `samples`).
   - 1쪽 장면(`HowToBlock`). 가짜 커서가 댓글로 다가가면 CleanTube 버튼이 나타나고, 버튼을 누르면 메뉴가 열린다. 5.5초마다 되풀이한다. 움직임은 `motion.ts`의 `playHowTo`가 Web Animations API로 건다(`id`가 `how-cursor`, `how-trigger`, `how-menu`). 커서가 갈 자리는 걸 때마다 실제 댓글 글과 버튼의 위치를 재서 정하고, 장면 크기가 바뀌면(`ResizeObserver`) 다시 재서 하던 데서 이어 간다. 움직임 줄이기(`prefers-reduced-motion`)면 장면을 걸지 않아 메뉴가 열린 정지 화면이고, 설정이 바뀌면 바로 멈추거나 다시 돈다. 그림 전체가 `aria-hidden`이고 `inert`다.
   - 2·3쪽(`ModeStep`)의 표시 방법은 아무 칸도 고르지 않은 상태로 시작한다. 이 안내에서 고른 것은 `App`의 `chosen`에 따로 들고, 고르면 설정에도 저장한다. 고르지 않고 넘어가면 저장된 설정이 그대로 남는다. 이전 쪽으로 돌아가면 고른 칸과 그 모습이 그대로다.
-  - 같은 쪽에 "답글도 함께 가리기" 스위치가 있다. 설정은 하나라 두 쪽의 스위치가 같은 값이다. 스위치는 늘 자리에 있고, 아직 안 골랐거나 완전히 숨기기면 꺼 둔다(`disabled`). 자리가 생겼다 없어지면 아래 예시가 들썩여서다. 설명 한 줄도 늘 한 줄 자리를 둔다.
+  - 같은 쪽에 "답글도 함께 가리기" 스위치가 있다. 영구와 임시가 따로라 설명은 "영구 차단에만 적용"처럼 그 종류를 적는다. 스위치는 늘 자리에 있고, 아직 안 골랐거나 완전히 숨기기면 꺼 둔다(`disabled`). 자리가 생겼다 없어지면 아래 예시가 들썩여서다. 설명 한 줄도 늘 한 줄 자리를 둔다.
+  - 4쪽 요약은 영구·임시 줄 끝에 답글 범위를 붙인다("문구로 바꾸기 · 답글까지 가림"). 완전히 숨기기는 늘 답글째라 붙이지 않는다.
   - 고른 값은 `useSettings`로 바로 저장한다. "건너뛰기"는 `tabs.getCurrent`와 `tabs.remove`로 이 탭을 닫는다. 끝 쪽에는 없다.
   - 쪽을 넘기면 지금 쪽이 150ms 동안 사라지고(`motion.ts`의 `leave`) 다음 쪽이 220ms 동안 살짝 올라오며 나타난다(`enter`). 둘 다 Web Animations API라 시간은 `motion.ts`에만 있고, 사라지기가 끝나는 것을 기다렸다가 쪽을 바꾼다. 다음 쪽은 `key`가 바뀌어 새로 만들어진다. 움직임 줄이기면 바로 바뀐다. 누른 순간에 설정을 읽는다. 새 쪽의 제목(`tabIndex=-1`)에 포커스를 옮긴다. 처음 열 때는 옮기지 않는다.
-  - `CommentSample.tsx` 유튜브 댓글란을 흉내 낸 예시. 유튜브와 같은 태그 이름(`ytd-comment-thread-renderer`, `ytd-comment-view-model`, `ytd-comment-replies-renderer`)으로 그리고, 가리는 일은 콘텐츠 스크립트의 `applyDisplay`가 한다. 그래서 고르거나 바꾸면 유튜브에서 차단할 때와 같은 애니메이션으로 접히고 흐려지고 바뀌며, "숨긴 항목 보기"도 같은 코드로 열린다. 처음 그릴 때(돌아왔을 때)만 움직이지 않고 바로 맞춘다. 가운데 스레드에 답글 둘이 달려 있다.
+  - `CommentSample.tsx` 유튜브 댓글란을 흉내 낸 예시. 댓글 하나는 팝업 미리보기와 같이 쓰는 `components/YoutubeComment.tsx`(모양은 `YoutubeComment.css`)다. 유튜브와 같은 태그 이름(`ytd-comment-thread-renderer`, `ytd-comment-view-model`, `ytd-comment-replies-renderer`)으로 그리고, 가리는 일은 콘텐츠 스크립트의 `applyDisplay`가 한다. 그래서 고르거나 바꾸면 유튜브에서 차단할 때와 같은 애니메이션으로 접히고 흐려지고 바뀌며, "숨긴 항목 보기"도 같은 코드로 열린다. 처음 그릴 때(돌아왔을 때)만 움직이지 않고 바로 맞춘다. 가운데 스레드에 답글 둘이 달려 있다.
     - 처음 그릴 때의 높이를 `min-height`로 붙잡는다. 아무것도 가리지 않은 처음이 가장 길어서, 댓글이 접혀도 예시 상자와 아래 단추가 움직이지 않는다. "숨긴 항목 보기"로 연 문구 한 줄만큼은 늘어난다.
     - `display.ts`가 넣는 가림막과 속성은 React가 모르는 DOM이다. 이 요소들의 React 자식은 바뀌지 않아서 서로 부딪치지 않는다.
   - `main.tsx`가 `base.css` 다음에 `youtube.content/style.css`와 `menu.css`를 가져온다. 예시의 가림막, 메뉴 버튼, 메뉴가 유튜브에서와 같은 CSS로 그려진다. 같은 무게의 규칙(버튼 hover)은 뒤에 온 유튜브 쪽이 이긴다.
-  - 예시의 테마는 `prefers-color-scheme`를 따라 `<html dark>`와 메뉴의 `.dark`를 켠다. style.css와 menu.css가 유튜브처럼 그것으로 어두운 테마를 받는다.
+  - 예시의 테마는 `prefers-color-scheme`를 따라 `<html dark>`(`hooks/usePrefersDark.ts`)와 메뉴의 `.dark`를 켠다. style.css와 menu.css가 유튜브처럼 그것으로 어두운 테마를 받는다.
 - `entrypoints/options/App.tsx` 설정 페이지. "차단 목록"과 "언어" 두 탭이다(`role="tablist"`, 화살표로 옮기고 Home·End로 처음과 끝). 고른 탭의 내용만 그려서 `aria-controls`도 고른 탭에만 단다. 그리지 않은 패널을 가리키면 일부 화면 읽기 프로그램이 없는 대상으로 다룬다. 주소가 `#language`면 언어 탭으로 열리고, 탭을 바꾸면 주소에 적는다(`replaceState`). 차단 목록 탭은 `BlockList` 하나와 댓글 메뉴로도 차단할 수 있다는 안내, 언어 탭은 브라우저 언어 따름과 다섯 언어 중 하나를 고르는 라디오다. 언어 이름은 그 언어로 적고 `lang`을 단다. 맨 위 줄에 로고와 "설정", 그 아래는 가운데 760px 한 단이다. 목록을 팝업이 아니라 여기 둔 이유는 [decisions.md](decisions.md) "차단 목록은 옵션 페이지에, 설정은 팝업에".
   - 동기화 한도 안내가 있으면 목록 위에 팝업보다 긴 글로 띄운다. 이 PC에서는 그대로 가려진다는 것, 다 차면 무엇이 빠지는지까지.
 - `hooks/useSyncWarning.ts` `loadSyncStatus()`로 읽고 `watchSyncStatus()`로 구독해 `syncWarning()`의 안내를 돌려준다.

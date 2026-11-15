@@ -1,0 +1,98 @@
+/*
+ * 유튜브 댓글을 흉내 낸 예시(components/YoutubeComment.tsx). 크기와 색은 유튜브 댓글란을 따른다. 테마는 유튜브처럼 <html dark>로 받는다.
+ * 글꼴과 바탕은 감싸는 쪽(첫 사용 안내의 .yt-sample, 팝업의 .preview)이 정한다. 차단된 댓글의 가림막은 style.css가 그린다.
+ */
+
+/* 유튜브와 같은 태그 이름(ytd-…)으로 그려서 기본이 inline이다 */
+.yt-thread,
+.yt-comment {
+  display: block;
+}
+
+.yt-thread {
+  margin-bottom: 16px;
+}
+
+.yt-row {
+  display: flex;
+  gap: 16px;
+}
+
+.yt-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.reply .yt-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+}
+
+.yt-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.yt-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.yt-handle {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.yt-time,
+.yt-actions {
+  font-size: 12px;
+  color: #606060;
+}
+
+html[dark] .yt-time,
+html[dark] .yt-actions {
+  color: #aaaaaa;
+}
+
+.yt-text {
+  margin: 0;
+}
+
+.yt-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.yt-thumb {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.yt-reply-button {
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+/* 답글은 프로필 그림 자리만큼 들여 쓴다 */
+.yt-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0 0 56px;
+}

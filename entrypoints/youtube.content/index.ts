@@ -135,14 +135,14 @@ export default defineContentScript({
     function applyOne(el: HTMLElement, now: number, animate: boolean): PanelRow {
       const author = readAuthor(el);
       const hit = findBlock(author, blocked, now);
-      const display =
-        settings.enabled && hit
-          ? {
-              key: entryKey(hit),
-              mode: hit.until === undefined ? settings.display.permanent : settings.display.temporary,
-            }
-          : null;
-      applyDisplay(el, display, { coverReplies: settings.coverReplies, animate, text: t.overlay, lang: locale });
+      const kind = hit?.until === undefined ? 'permanent' : 'temporary';
+      const display = settings.enabled && hit ? { key: entryKey(hit), mode: settings.display[kind] } : null;
+      applyDisplay(el, display, {
+        coverReplies: settings.coverReplies[kind],
+        animate,
+        text: t.overlay,
+        lang: locale,
+      });
       if (settings.enabled) menu.attach(el);
       else menu.detach(el);
       return { author, hit, comment: el };

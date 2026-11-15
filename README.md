@@ -12,7 +12,8 @@
   - 완전히 숨기기. 최상위 댓글이면 답글 묶음까지 스레드째로 접히며 사라진다. (영구의 기본값)
   - 흐리게. 마우스를 올리면 "숨긴 항목 보기"가 나온다. (임시의 기본값)
   - 문구로 바꾸기. "차단된 댓글" 한 줄과 "숨긴 항목 보기"만 남는다.
-  - 흐리게와 문구로 바꾸기는 그 댓글만 가리고 답글은 둔다. 답글까지 가리는 옵션이 있다.
+  - 흐리게와 문구로 바꾸기는 그 댓글만 가리고 답글은 둔다. 답글까지 가리는 옵션이 영구와 임시에 따로 있다.
+  - 팝업에서 고르면 바로 아래 미리보기가 유튜브 댓글과 답글을 작게 그려 고른 모습으로 가려 보여 준다.
 - **켜기/끄기**. 팝업 맨 위 줄의 스위치로 차단 기능 전체를 끈다. 끄면 차단한 댓글도 그대로 보이고 댓글의 CleanTube 버튼도 없어진다.
   꺼져 있는 동안은 툴바 아이콘이 회색이 된다. 차단 목록은 그대로라 다시 켜면 돌아온다.
 - **차단 목록**. 팝업의 "차단 목록 관리"를 누르면 설정 페이지의 차단 목록 탭이 열린다. 거기서 차단한 작성자를 보고 지운다.
@@ -60,19 +61,21 @@ entrypoints/
   youtube-main.content.ts
                      페이지(MAIN) 세계에서 실행. 댓글 요소에 채널 ID를 속성으로 적는다.
   background.ts      서비스 워커. 첫 사용 안내 탭 열기, 업데이트 뒤 열린 탭에 스크립트 다시 넣기, 차단 목록 동기화, 꺼짐 아이콘
-  popup/             툴바 아이콘 팝업 (React). 켜기/끄기, 차단한 수, 영구/임시 차단 설정, 디버그 패널 토글
+  popup/             툴바 아이콘 팝업 (React). 켜기/끄기, 차단한 수, 영구/임시 차단 설정과 미리보기, 디버그 패널 토글
   options/           설정 페이지 (React). 탭 하나로 열린다. "차단 목록"과 "언어" 두 탭
-  onboarding/        첫 사용 안내 (React). 예시 댓글은 유튜브 쪽 display.ts와 CSS를 그대로 쓴다
+  onboarding/        첫 사용 안내 (React). 예시 댓글은 유튜브 쪽 display.ts와 CSS를 그대로 쓴다(팝업 미리보기도)
 components/          확장 페이지(팝업, 설정, 첫 사용 안내)의 React 컴포넌트
   BlockList.tsx      차단 목록 보기와 편집 (+ BlockList.css)
   Segmented.tsx      여러 칸 중 하나를 고르는 버튼 묶음
   DurationField.tsx  임시 차단 기간
   Switch.tsx         켜고 끄는 설정 한 줄
+  YoutubeComment.tsx 유튜브 댓글 하나를 흉내 낸 것. 첫 사용 안내 예시와 팝업 미리보기 (+ YoutubeComment.css)
 hooks/
   useSettings.ts     설정 읽기·쓰기·구독
   useBlocked.ts      차단 목록 읽기·쓰기·구독
   useSyncWarning.ts  동기화 한도 안내
   useI18n.tsx        화면 언어와 글
+  usePrefersDark.ts  예시 댓글의 어두운 테마(<html dark>)
 utils/
   blocklist.ts       차단 목록. chrome.storage.local
   blocksync.ts       차단 목록을 sync에 나눠 담고 다른 PC의 것과 합치는 순수 함수

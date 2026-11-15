@@ -1,11 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import DurationField from '@/components/DurationField';
 import Logo from '@/components/Logo';
 import Segmented from '@/components/Segmented';
 import Switch from '@/components/Switch';
+import { Comment } from '@/components/YoutubeComment';
 import { displayModeOptions } from '@/components/displayModes';
+import { applyDisplay } from '@/entrypoints/youtube.content/display';
 import { useBlocked } from '@/hooks/useBlocked';
 import { useI18n } from '@/hooks/useI18n';
+import { usePrefersDark } from '@/hooks/usePrefersDark';
 import { useSettings } from '@/hooks/useSettings';
 import { useSyncWarning } from '@/hooks/useSyncWarning';
 import { isExpired } from '@/utils/matcher';
@@ -13,8 +16,10 @@ import type { DisplayMode } from '@/utils/settings';
 import { openSettings } from './openSettings';
 import './App.css';
 
+type Kind = 'permanent' | 'temporary';
+
 /**
- * 툴바 아이콘을 눌렀을 때 뜨는 팝업. 맨 위 줄의 차단 기능 스위치, 차단한 수, 영구/임시 차단 설정, 답글 범위, 디버그 패널 토글.
+ * 툴바 아이콘을 눌렀을 때 뜨는 팝업. 맨 위 줄의 차단 기능 스위치, 차단한 수, 영구/임시 차단 설정(표시 방법, 답글 범위, 임시는 기간), 디버그 패널 토글.
  * 차단 목록과 언어는 여기 없고 설정 페이지(entrypoints/options)의 두 탭에 있다. 팝업에는 그 탭을 여는 버튼만 둔다.
  * "차단 목록 관리"는 차단 목록 탭, 맨 위 줄의 "설정"은 언어 탭을 연다. 진입로가 차단 목록 하나뿐이면 다른 설정을 찾을 길이 없어서.
  */
@@ -23,6 +28,7 @@ export default function App() {
   const { settings, update } = useSettings();
   const { blocked } = useBlocked();
   const syncWarning = useSyncWarning();
+  usePrefersDark();
 
   useEffect(() => {
     document.title = 'CleanTube';
@@ -30,8 +36,15 @@ export default function App() {
 
   if (!settings || !blocked) return <div className="popup loading muted">{t.common.loading}</div>;
 
-  const setMode = (kind: 'permanent' | 'temporary', mode: DisplayMode) =>
-    update({ display: { [kind]: mode } });
+  const modeField = (kind: Kind) => (
+    <ModeField
+      kind={kind}
+      mode={settings.display[kind]}
+      coverReplies={settings.coverReplies[kind]}
+      onMode={(mode) => update({ display: { [kind]: mode } })}
+      onCoverReplies={(checked) => update({ coverReplies: { [kind]: checked } })}
+    />
+  );
 
   // 만료된 임시 차단은 다음에 목록을 쓸 때 지워진다. 그 전에도 세지 않아야 차단 목록 페이지의 수와 같다.
   const now = Date.now();
@@ -86,11 +99,7 @@ export default function App() {
           <span className="kind-mark" />
           {t.common.permanent}
         </h2>
-        <ModeField
-          kind={t.common.permanent}
-          value={settings.display.permanent}
-          onChange={(mode) => setMode('permanent', mode)}
-        />
+        {modeField('permanent')}
       </section>
 
       <section className="kind temporary">
@@ -102,21 +111,11 @@ export default function App() {
           value={settings.temporaryDurationMs}
           onChange={(temporaryDurationMs) => update({ temporaryDurationMs })}
         />
-        <ModeField
-          kind={t.common.temporary}
-          value={settings.display.temporary}
-          onChange={(mode) => setMode('temporary', mode)}
-        />
+        {modeField('temporary')}
         <p className="muted">{t.popup.durationNote}</p>
       </section>
 
       <div className="switches">
-        <Switch
-          label={t.popup.coverReplies}
-          description={t.popup.coverRepliesHint}
-          checked={settings.coverReplies}
-          onChange={(coverReplies) => update({ coverReplies })}
-        />
         <Switch
           label={t.popup.debugPanel}
           description={t.popup.debugPanelHint}
@@ -128,42 +127,83 @@ export default function App() {
   );
 }
 
-function ModeField(props: { kind: string; value: DisplayMode; onChange: (mode: DisplayMode) => void }) {
-  const { t } = useI18n();
+/** 표시 방법과 답글 범위. 답글 스위치는 "기간" 줄의 직접 입력처럼 이름표 줄 오른쪽에 둔다. 팝업 높이를 늘리지 않으려고. */
+function ModeField(props: {
+  kind: Kind;
+  mode: DisplayMode;
+  coverReplies: boolean;
+  onMode: (mode: DisplayMode) => void;
+  onCoverReplies: (checked: boolean) => void;
+}) {
+  const { t, locale } = useI18n();
+  const hide = props.mode === 'hide';
   return (
     <div className="field">
-      <span className="field-label">{t.common.display}</span>
+      <div className="field-head">
+        <span className="field-label">{t.common.display}</span>
+        {/* 답글 범위는 흐리게와 문구로 바꾸기에만 쓰인다. 완전히 숨기기는 늘 답글째라 켜진 채 흐리게 둔다(첫 사용 안내와 같다) */}
+        <Switch
+          compact
+          label={t.popup.coverReplies}
+          description={t.popup.coverRepliesHint}
+          checked={hide || props.coverReplies}
+          disabled={hide}
+          onChange={props.onCoverReplies}
+        />
+      </div>
       <Segmented
-        label={t.common.displayOf(props.kind)}
+        label={t.common.displayOf(props.kind === 'permanent' ? t.common.permanent : t.common.temporary)}
         options={displayModeOptions(t)}
-        value={props.value}
-        onChange={props.onChange}
+        value={props.mode}
+        onChange={props.onMode}
       />
-      <ModePreview mode={props.value} />
+      {/* 언어가 바뀌면 글의 길이가 달라져서 새로 만들어 높이를 다시 잰다 */}
+      <ModePreview key={locale} kind={props.kind} mode={props.mode} coverReplies={props.coverReplies} />
     </div>
   );
 }
 
 /**
- * 고른 표시 방법으로 댓글이 유튜브에서 어떻게 보이는지 한 줄로 보여 준다. 고른 칸의 이름을 거드는 그림이라 스크린 리더에는 숨긴다.
- * 흐리게와 문구로 바꾸기의 모양은 youtube.content/style.css의 가림막을 따라 그린다.
+ * 고른 표시 방법으로 댓글이 유튜브에서 어떻게 보이는지. 첫 사용 안내의 예시처럼 유튜브와 같은 태그로 댓글 하나와 답글 하나를 작게 그리고,
+ * 콘텐츠 스크립트의 applyDisplay와 style.css로 가린다. 그래서 표시 방법이나 답글 스위치를 바꾸면 유튜브에서처럼 접히고 흐려지고 바뀐다.
+ * 고른 칸과 스위치를 거드는 그림이라 스크린 리더와 탭 이동에서 뺀다. 예시 글은 첫 사용 안내와 같은 것(영구는 스포일러, 임시는 말다툼).
  */
-function ModePreview({ mode }: { mode: DisplayMode }) {
-  const { t } = useI18n();
+function ModePreview(props: { kind: Kind; mode: DisplayMode; coverReplies: boolean }) {
+  const { t, locale } = useI18n();
+  const { mode, coverReplies } = props;
+  const boxRef = useRef<HTMLDivElement>(null);
+  const commentRef = useRef<HTMLElement>(null);
+  const shown = useRef(false);
+  const sample = props.kind === 'permanent' ? t.samples.spoiler : t.samples.heated;
+  const replies = (props.kind === 'permanent' ? t.samples.spoilerReplies : t.samples.heatedReplies).slice(0, 1);
+
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const comment = commentRef.current;
+    if (!box || !comment) return;
+    // 아무것도 가리지 않은 처음이 가장 길다. 그 높이를 붙잡아 두면 접히거나 한 줄로 바뀌어도 팝업 아래가 들썩이지 않는다
+    if (!shown.current) box.style.minHeight = `${box.offsetHeight}px`;
+    // 팝업을 열 때는 고른 모습으로 바로, 그다음부터는 유튜브에서 차단할 때처럼 움직인다
+    applyDisplay(comment, { key: sample.handle, mode }, {
+      coverReplies,
+      animate: shown.current,
+      text: t.overlay,
+      lang: locale,
+    });
+    shown.current = true;
+  }, [mode, coverReplies, sample.handle, t.overlay, locale]);
+
   return (
-    <div className="preview" aria-hidden="true">
-      {mode === 'hide' && <span className="muted">{t.popup.previewHide}</span>}
-      {mode === 'blur' && (
-        <span className="blurred">
-          <span className="mono">@author</span> {t.popup.previewBlur}
-        </span>
-      )}
-      {mode === 'placeholder' && (
-        <>
-          <span className="muted">{t.overlay.blocked}</span>
-          <span className="pill">{t.overlay.show}</span>
-        </>
-      )}
+    <div ref={boxRef} className="preview" aria-hidden="true" inert>
+      <ytd-comment-thread-renderer className="yt-thread">
+        <Comment comment={sample} compact commentRef={commentRef} />
+        <ytd-comment-replies-renderer className="yt-replies">
+          {replies.map((reply) => (
+            <Comment key={reply.handle} comment={reply} reply compact />
+          ))}
+        </ytd-comment-replies-renderer>
+      </ytd-comment-thread-renderer>
+      <p className="preview-empty">{t.popup.previewHide}</p>
     </div>
   );
 }

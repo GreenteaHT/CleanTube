@@ -4,14 +4,16 @@ import DurationField from '@/components/DurationField';
 import Logo from '@/components/Logo';
 import Segmented from '@/components/Segmented';
 import Switch from '@/components/Switch';
+import { Comment } from '@/components/YoutubeComment';
 import { displayModeLabel, displayModeOptions, languageOptions } from '@/components/displayModes';
 import { useI18n } from '@/hooks/useI18n';
+import { usePrefersDark } from '@/hooks/usePrefersDark';
 import { useSettings } from '@/hooks/useSettings';
 import { formatDuration } from '@/utils/duration';
 import type { LanguageSetting, Messages } from '@/utils/i18n';
 import type { DisplayMode, Settings, SettingsPatch } from '@/utils/settings';
 import type { SampleComment } from '@/locales/en';
-import CommentSample, { Comment } from './CommentSample';
+import CommentSample from './CommentSample';
 import { enter, leave, playHowTo, prefersReducedMotion, usePrefersReducedMotion } from './motion';
 import './App.css';
 
@@ -176,17 +178,15 @@ export default function App() {
                     <span className="kind-mark" />
                     {t.common.permanent}
                   </dt>
-                  <dd>{displayModeLabel(settings.display.permanent, t)}</dd>
+                  <dd>{displaySummary(settings, 'permanent', t)}</dd>
                   <dt className="temporary">
                     <span className="kind-mark" />
                     {t.common.temporary}
                   </dt>
                   <dd>
                     <span className="mono">{formatDuration(settings.temporaryDurationMs, t.common)}</span> ·{' '}
-                    {displayModeLabel(settings.display.temporary, t)}
+                    {displaySummary(settings, 'temporary', t)}
                   </dd>
-                  <dt>{t.onboarding.summaryReplies}</dt>
-                  <dd>{repliesSummary(settings, t)}</dd>
                 </dl>
                 <p className="muted">{t.onboarding.changeLater}</p>
               </section>
@@ -292,13 +292,14 @@ function ModeStep(props: {
   const { t, locale } = useI18n();
   const { kind, chosen, settings, update } = props;
   const kindName = kind === 'permanent' ? t.common.permanent : t.common.temporary;
+  const coverReplies = settings.coverReplies[kind];
   // 답글 범위는 흐리게와 문구로 바꾸기에만 쓰인다. 스위치는 늘 자리에 두고(예시가 들썩이지 않게) 쓸 수 없을 때는 흐리게 둔다.
   const replies =
     chosen === null
-      ? { disabled: true, checked: settings.coverReplies, description: t.onboarding.repliesDisabled }
+      ? { disabled: true, checked: coverReplies, description: t.onboarding.repliesDisabled }
       : chosen === 'hide'
         ? { disabled: true, checked: true, description: t.onboarding.repliesAlways }
-        : { disabled: false, checked: settings.coverReplies, description: t.onboarding.repliesShared };
+        : { disabled: false, checked: coverReplies, description: t.onboarding.repliesOnly(kindName) };
 
   return (
     <section className={kind === 'temporary' ? 'step temporary' : 'step'}>
@@ -328,13 +329,13 @@ function ModeStep(props: {
           description={replies.description}
           checked={replies.checked}
           disabled={replies.disabled}
-          onChange={(coverReplies) => update({ coverReplies })}
+          onChange={(checked) => update({ coverReplies: { [kind]: checked } })}
         />
       </div>
       <p className="caption">
         {chosen === null
           ? t.onboarding.unchosen(displayModeLabel(settings.display[kind], t))
-          : caption(chosen, props.blocked.handle, settings.coverReplies, t)}
+          : caption(chosen, props.blocked.handle, coverReplies, t)}
       </p>
       {/* 언어가 바뀌면 예시 댓글의 글과 길이가 달라져서 새로 만들어 높이를 다시 잰다. 고른 모습은 바로 다시 적용된다 */}
       <CommentSample
@@ -344,7 +345,7 @@ function ModeStep(props: {
         replies={props.replies}
         after={t.samples.after}
         mode={chosen}
-        coverReplies={settings.coverReplies}
+        coverReplies={coverReplies}
       />
     </section>
   );
@@ -356,32 +357,16 @@ function caption(mode: DisplayMode, handle: string, coverReplies: boolean, t: Me
   return `${look} · ${coverReplies ? t.onboarding.repliesCovered : t.onboarding.repliesVisible}`;
 }
 
-function repliesSummary(settings: Settings, t: Messages): string {
-  const { permanent, temporary } = settings.display;
-  if (permanent === 'hide' && temporary === 'hide') return t.onboarding.summaryRepliesAlways;
-  return settings.coverReplies ? t.onboarding.summaryRepliesCovered : t.onboarding.summaryRepliesVisible;
+/** 요약의 표시 방법. 답글 범위는 그 종류의 줄 끝에 붙인다. 완전히 숨기기는 늘 답글째라 붙이지 않는다. */
+function displaySummary(settings: Settings, kind: 'permanent' | 'temporary', t: Messages): string {
+  const mode = settings.display[kind];
+  const look = displayModeLabel(mode, t);
+  if (mode === 'hide') return look;
+  return `${look} · ${settings.coverReplies[kind] ? t.onboarding.repliesCovered : t.onboarding.repliesVisible}`;
 }
 
 /** 건너뛰기. 이 탭을 닫는다. 확장이 연 탭이라 window.close()가 아니라 tabs로 닫는다. */
 async function closeTab() {
   const tab = await browser.tabs.getCurrent();
   if (tab?.id !== undefined) await browser.tabs.remove(tab.id);
-}
-
-/**
- * 예시 댓글의 테마. style.css와 menu.css는 유튜브처럼 <html dark>와 .dark로 어두운 테마를 받는다.
- * 유튜브의 테마는 알 수 없어서 브라우저 테마를 따른다.
- */
-function usePrefersDark(): boolean {
-  const [dark, setDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
-  useEffect(() => {
-    const query = matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (e: MediaQueryListEvent) => setDark(e.matches);
-    query.addEventListener('change', onChange);
-    return () => query.removeEventListener('change', onChange);
-  }, []);
-  useEffect(() => {
-    document.documentElement.toggleAttribute('dark', dark);
-  }, [dark]);
-  return dark;
 }

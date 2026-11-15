@@ -89,7 +89,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -104,33 +104,93 @@
   height: 30px;
 }
 
-/* 고른 표시 방법의 미리보기 한 줄 */
+/*
+ * 고른 표시 방법의 미리보기. 유튜브 댓글 하나와 답글 하나(components/YoutubeComment)를 유튜브보다 작게 그린다.
+ * 가림막과 가린 모양은 style.css 그대로다. 바탕과 글자색은 첫 사용 안내의 예시처럼 유튜브 댓글란을 따른다.
+ */
 .popup .preview {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  padding: 3px 10px;
+  position: relative;
+  padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 3px;
-  background: var(--field);
-  font-size: 12px;
+  background: #ffffff;
+  color: #0f0f0f;
+  font:
+    12px/14px Roboto,
+    Arial,
+    var(--cjk),
+    sans-serif;
+  overflow: hidden;
 }
 
-.popup .preview .blurred {
-  filter: blur(2.5px);
-  white-space: nowrap;
-  user-select: none;
+html[dark] .popup .preview {
+  background: #0f0f0f;
+  color: #f1f1f1;
 }
 
-/* 유튜브 화면의 "숨긴 항목 보기" pill을 닮게 */
-.popup .preview .pill {
-  padding: 2px 10px;
-  border-radius: 12px;
-  background: var(--line);
+.popup .preview .yt-thread {
+  margin-bottom: 0;
+}
+
+.popup .preview .yt-row {
+  gap: 8px;
+}
+
+.popup .preview .yt-avatar {
+  width: 24px;
+  height: 24px;
   font-size: 11px;
-  font-weight: 500;
+}
+
+.popup .preview .reply .yt-avatar {
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+}
+
+.popup .preview .yt-meta {
+  margin-bottom: 0;
+  line-height: 13px;
+}
+
+.popup .preview .yt-handle,
+.popup .preview .yt-time {
+  font-size: 11px;
+}
+
+/* 예시 글이 길어도 한 줄로 */
+.popup .preview .yt-text {
+  overflow: hidden;
   white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 답글은 프로필 그림 자리만큼 들여 쓴다 */
+.popup .preview .yt-replies {
+  margin: 4px 0 0 32px;
+}
+
+/*
+ * 문구로 바꾸기의 한 줄. 유튜브에서는 아래 댓글과 띄우려고 위아래 여백이 있는데, 그대로 두면 작게 그린 댓글보다 높아져
+ * 고를 때 팝업이 길어진다. 여백만 뺀다. 글과 pill의 크기는 style.css 그대로다.
+ */
+.popup .preview [data-cleantube-overlay] {
+  padding: 0;
+}
+
+/* 완전히 숨기기로 댓글이 답글째 접혀 빠진 뒤의 빈 자리. style.css가 숨긴 스레드에 붙이는 속성을 보고 나타난다 */
+.popup .preview-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.popup .preview:has(> [data-cleantube-blocked]) .preview-empty {
+  opacity: 1;
 }
 
 .popup .switches .switch {

@@ -387,6 +387,32 @@ button:disabled {
   background: var(--bg);
 }
 
+/* 작은 스위치(Switch의 compact). 이름표 줄 오른쪽에 들어가게 제목을 이름표 크기로 */
+.switch.compact {
+  gap: 8px;
+  font-size: 12px;
+}
+
+.switch.compact .switch-label {
+  font-weight: 400;
+}
+
+/* 이름표 줄이 높아지지 않게 스위치도 줄인다 */
+.switch.compact input {
+  width: 30px;
+  height: 16px;
+  border-radius: 8px;
+}
+
+.switch.compact input::before {
+  width: 12px;
+  height: 12px;
+}
+
+.switch.compact input:checked::before {
+  left: 16px;
+}
+
 .switch:has(input:disabled) {
   opacity: 0.45;
   cursor: default;
