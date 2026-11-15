@@ -40,11 +40,17 @@ export default defineContentScript({
     let timer: number | undefined;
     const schedule = () => {
       if (timer !== undefined) return;
-      timer = ctx.setTimeout(() => {
+      timer = window.setTimeout(() => {
         timer = undefined;
         applyAll();
       }, 150);
     };
+    // ctx.setTimeout은 부를 때마다 정리할 리스너를 하나씩 달고 떼지 않는다(WXT 0.21). 스캔은 탭이 열려 있는 내내 걸리므로
+    // 그냥 setTimeout을 쓰고 여기서 한 번에 치운다.
+    ctx.onInvalidated(() => {
+      clearTimeout(timer);
+      clearTimeout(expiryTimer);
+    });
 
     // 유튜브는 SPA라 페이지를 옮겨도 스크립트가 다시 실행되지 않는다.
     // 댓글은 스크롤해야 뒤늦게 붙기도 한다. 그래서 DOM 변경을 감시해서 그때마다 스캔한다.
@@ -131,7 +137,7 @@ export default defineContentScript({
       const now = Date.now();
       const next = Math.min(...blocked.map((e) => e.until ?? Infinity).filter((until) => until > now));
       if (!Number.isFinite(next)) return;
-      expiryTimer = ctx.setTimeout(
+      expiryTimer = window.setTimeout(
         () => {
           expiryTimer = undefined;
           applyAll(true);

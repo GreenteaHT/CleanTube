@@ -9,6 +9,9 @@ const PERMALINK_SELECTOR = '#published-time-text a';
 /** 댓글 본문. */
 const TEXT_SELECTOR = '#content-text';
 
+/** 영상 페이지 전체를 감싸는 요소. 댓글도 이 안에 있다. */
+const WATCH_PAGE_SELECTOR = 'ytd-watch-flexy';
+
 /** 영상 페이지에서 플레이어 아래의 영상 제목. */
 const VIDEO_TITLE_SELECTOR = 'ytd-watch-metadata #title yt-formatted-string';
 
@@ -25,8 +28,10 @@ export function readSource(comment: HTMLElement): BlockSource | undefined {
   if (url.origin !== location.origin) return undefined;
 
   const source: BlockSource = { url: url.href };
+  // 그 댓글이 들어 있는 영상 페이지에서 찾는다. 유튜브는 다른 화면으로 가도 보던 영상 페이지를 숨긴 채 남겨 두어서(2026-11-15 실측),
+  // 문서 전체에서 찾으면 영상 페이지 밖의 댓글에 앞서 본 영상의 제목이 붙는다.
   const title =
-    document.querySelector(VIDEO_TITLE_SELECTOR)?.textContent?.trim() ||
+    comment.closest(WATCH_PAGE_SELECTOR)?.querySelector(VIDEO_TITLE_SELECTOR)?.textContent?.trim() ||
     document.title.replace(/ - YouTube$/, '');
   if (title) source.videoTitle = clip(title, MAX_TITLE);
   const text = textOf(comment.querySelector(TEXT_SELECTOR)).trim();

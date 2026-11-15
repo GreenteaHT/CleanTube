@@ -10,7 +10,7 @@ const BLOCKED_ATTR = 'data-cleantube-blocked';
 /** 흐리게 하거나 자리표시자로 바꿀 요소에 붙이는 속성. 값은 'blur' 또는 'placeholder'. 모양은 style.css. */
 const COVER_ATTR = 'data-cleantube-cover';
 
-/** 사용자가 "숨긴 항목 보기"를 누른 요소. 가림을 잠깐 푼다. 요소에만 적어 두므로 페이지를 옮기면 사라진다. */
+/** 사용자가 "숨긴 항목 보기"를 누른 요소. 가림을 잠깐 푼다. 요소에만 적어 두므로 페이지를 옮기면 사라진다. 요소가 다른 댓글에 다시 쓰이면 setCover가 뗀다. */
 const REVEALED_ATTR = 'data-cleantube-revealed';
 
 /** 가린 요소 안에 우리가 넣는 요소. "차단된 댓글" 글자와 pill이 들어 있다. */
@@ -24,6 +24,9 @@ const REPLIES_SELECTOR = 'ytd-comment-replies-renderer';
 
 /** 사용자가 차단이나 해제를 눌렀을 때 표시가 바뀌는 데 걸리는 시간. 취향값이라 쓰면서 조정한다. */
 const DURATION_MS = 220;
+
+/** 운영체제의 "동작 줄이기". 켜져 있으면 움직이지 않고 바로 바꾼다. matches는 설정이 바뀌면 따라 바뀐다. */
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 type Cover = Exclude<DisplayMode, 'hide'>;
 
@@ -46,7 +49,7 @@ export interface OverlayText {
 interface Options {
   /** blur나 placeholder일 때 최상위 댓글의 답글까지 가릴지. */
   coverReplies: boolean;
-  /** 사용자가 누른 변경이면 참. 스크롤로 새로 붙은 댓글은 거짓이라 바로 적용된다. */
+  /** 사용자가 누른 변경이면 참. 스크롤로 새로 붙은 댓글은 거짓이라 바로 적용된다. 참이어도 "동작 줄이기"면 움직이지 않는다. */
   animate: boolean;
   text: OverlayText;
   /** 화면 언어. 가림막에 lang으로 달아 브라우저가 그 언어의 글꼴로 그리게 한다(유튜브 페이지의 언어와 다를 수 있다) */
@@ -77,18 +80,19 @@ export function applyDisplay(comment: HTMLElement, display: Display | null, opti
     : comment.closest<HTMLElement>(THREAD_SELECTOR);
   const hideTarget = thread ?? comment;
   const hideKey = display?.mode === 'hide' ? display.key : null;
-  const cover = display && display.mode !== 'hide' ? display.mode : null;
+  const cover = display && display.mode !== 'hide' ? { mode: display.mode, key: display.key } : null;
   const coverTarget = thread && options.coverReplies ? thread : comment;
 
+  const animate = options.animate && !reducedMotion.matches;
   // 숨겨진 요소의 가림은 보이지 않으니 움직이지 않고 바로 바꾼다.
-  const animateCover = options.animate && hideKey === null && !hideTarget.hasAttribute(BLOCKED_ATTR);
+  const animateCover = animate && hideKey === null && !hideTarget.hasAttribute(BLOCKED_ATTR);
 
   // 접힐 때는 가려진 모습 그대로 접히게 숨김을 먼저 맞추고,
   // 펼칠 때는 펼친 끝 크기에 가림막이 들어가 있게 가림을 먼저 맞춘다.
-  if (hideKey !== null) setHidden(hideTarget, hideKey, options.animate);
+  if (hideKey !== null) setHidden(hideTarget, hideKey, animate);
   setCover(comment, coverTarget === comment ? cover : null, animateCover);
   if (thread) setCover(thread, coverTarget === thread ? cover : null, animateCover);
-  if (hideKey === null) setHidden(hideTarget, null, options.animate);
+  if (hideKey === null) setHidden(hideTarget, null, animate);
 }
 
 // --- 완전히 숨김 ---
@@ -164,7 +168,19 @@ const COLLAPSED: Keyframe = {
 /** 가림이 바뀌는 중인 요소의 애니메이션. 끝나기 전에 또 바뀌면 멈추고 그 자리에서 이어 간다. */
 const coverAnimations = new WeakMap<Element, Animation[]>();
 
-function setCover(target: HTMLElement, mode: Cover | null, animate: boolean): void {
+/**
+ * 가린 요소마다 그것을 가리게 한 차단 항목의 키. 유튜브는 댓글 정렬을 바꾸면 요소를 그대로 두고 내용만 바꾼다(2026-11-15 실측).
+ * 키가 달라졌으면 그 요소는 다른 사람의 댓글이 된 것이다.
+ */
+const coveredBy = new WeakMap<Element, string>();
+
+function setCover(target: HTMLElement, cover: { mode: Cover; key: string } | null, animate: boolean): void {
+  const mode = cover?.mode ?? null;
+  // 앞 댓글에서 "숨긴 항목 보기"로 열어 둔 것이 다른 사람의 차단된 댓글까지 열어 두지 않게 한다
+  if (cover && coveredBy.get(target) !== cover.key) {
+    coveredBy.set(target, cover.key);
+    target.removeAttribute(REVEALED_ATTR);
+  }
   const current = target.getAttribute(COVER_ATTR);
   if (current === mode) {
     if (mode === null) return;
@@ -271,7 +287,7 @@ function createOverlay(target: HTMLElement): HTMLElement {
   pill.addEventListener('click', (e) => {
     e.stopPropagation();
     const revealing = !target.hasAttribute(REVEALED_ATTR);
-    change(target, true, !revealing, () => {
+    change(target, !reducedMotion.matches, !revealing, () => {
       target.toggleAttribute(REVEALED_ATTR, revealing);
       labelOverlay(overlay, target);
     });
