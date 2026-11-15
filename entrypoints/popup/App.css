@@ -46,6 +46,31 @@
   color: var(--fg);
 }
 
+/* 디버그 패널 버튼. 압축해제로 올렸을 때만 "설정" 왼쪽에 있다(개발용). 켜져 있으면 바탕을 칠한다 */
+.popup .debug {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  padding: 0;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.popup .debug + .open-settings {
+  margin-left: 0;
+}
+
+.popup .debug:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+.popup .debug[aria-pressed='true'] {
+  background: var(--field);
+  color: var(--fg);
+}
+
 /* 차단한 수와 차단 목록 페이지를 여는 버튼 */
 .popup .total {
   display: flex;
@@ -193,6 +218,7 @@ html[dark] .popup .preview {
   opacity: 1;
 }
 
-.popup .switches .switch {
-  padding: 7px 16px;
+/* 맨 칸은 팝업의 끝이라 아래 줄이 필요 없다 */
+.popup .kind:last-child {
+  border-bottom: none;
 }

@@ -39,7 +39,6 @@ export const ja = {
     coverReplies: '返信もまとめて隠す',
     coverRepliesHint: 'ぼかす・テキストに置換でも返信まで適用。完全に非表示は常に返信を含む',
     debugPanel: 'デバッグパネル',
-    debugPanelHint: 'YouTube画面の右に読み取ったコメント一覧を表示',
     enabled: 'ブロック機能',
     enabledHint: 'オフにするとブロックしたコメントもそのまま表示。コメントのCleanTubeボタンもなし',
     previewHide: 'この場所には何も残らない',

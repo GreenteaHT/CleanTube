@@ -11,6 +11,7 @@ import { useI18n } from '@/hooks/useI18n';
 import { usePrefersDark } from '@/hooks/usePrefersDark';
 import { useSettings } from '@/hooks/useSettings';
 import { useSyncWarning } from '@/hooks/useSyncWarning';
+import { useUnpacked } from '@/hooks/useUnpacked';
 import { isExpired } from '@/utils/matcher';
 import type { DisplayMode } from '@/utils/settings';
 import { openSettings } from './openSettings';
@@ -19,7 +20,8 @@ import './App.css';
 type Kind = 'permanent' | 'temporary';
 
 /**
- * 툴바 아이콘을 눌렀을 때 뜨는 팝업. 맨 위 줄의 차단 기능 스위치, 차단한 수, 영구/임시 차단 설정(표시 방법, 답글 범위, 임시는 기간), 디버그 패널 토글.
+ * 툴바 아이콘을 눌렀을 때 뜨는 팝업. 맨 위 줄의 차단 기능 스위치, 차단한 수, 영구/임시 차단 설정(표시 방법, 답글 범위, 임시는 기간).
+ * 압축해제로 올렸을 때만 맨 위 줄에 디버그 패널 버튼이 있다. 개발하면서 쓰는 것이라 스토어 사용자에게는 보이지 않는다.
  * 차단 목록과 언어는 여기 없고 설정 페이지(entrypoints/options)의 두 탭에 있다. 팝업에는 그 탭을 여는 버튼만 둔다.
  * "차단 목록 관리"는 차단 목록 탭, 맨 위 줄의 "설정"은 언어 탭을 연다. 진입로가 차단 목록 하나뿐이면 다른 설정을 찾을 길이 없어서.
  */
@@ -28,6 +30,7 @@ export default function App() {
   const { settings, update } = useSettings();
   const { blocked } = useBlocked();
   const syncWarning = useSyncWarning();
+  const unpacked = useUnpacked();
   usePrefersDark();
 
   useEffect(() => {
@@ -55,6 +58,22 @@ export default function App() {
       <header className="bar">
         <Logo />
         <span className="wordmark mono">CleanTube</span>
+        {unpacked && (
+          <button
+            type="button"
+            className="debug"
+            aria-label={t.popup.debugPanel}
+            title={t.popup.debugPanel}
+            aria-pressed={settings.debugPanel}
+            onClick={() => update({ debugPanel: !settings.debugPanel })}
+          >
+            {/* 벌레 */}
+            <svg className="icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <rect x="4.5" y="4.5" width="5" height="7.5" rx="2.5" />
+              <path d="M5.5 4.5a1.5 1.5 0 0 1 3 0M7 7v5M2 6.5h2.5M9.5 6.5H12M2.5 10h2M9.5 10h2" />
+            </svg>
+          </button>
+        )}
         <button type="button" className="open-settings" onClick={() => void openSettings('language')}>
           <svg className="icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
             <path d="M2 3.5h3M8 3.5h4M2 7h6M11 7h1M2 10.5h1M6 10.5h6" />
@@ -114,15 +133,6 @@ export default function App() {
         {modeField('temporary')}
         <p className="muted">{t.popup.durationNote}</p>
       </section>
-
-      <div className="switches">
-        <Switch
-          label={t.popup.debugPanel}
-          description={t.popup.debugPanelHint}
-          checked={settings.debugPanel}
-          onChange={(debugPanel) => update({ debugPanel })}
-        />
-      </div>
     </div>
   );
 }

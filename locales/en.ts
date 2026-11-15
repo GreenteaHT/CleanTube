@@ -58,7 +58,6 @@ export const en = {
     coverReplies: 'Also cover replies',
     coverRepliesHint: 'Applies to blur and replace with text · Hide completely always includes replies',
     debugPanel: 'Debug panel',
-    debugPanelHint: 'Shows the comments read on YouTube on the right',
     /** 팝업 맨 위 줄의 차단 기능 스위치. 글은 화면 읽기 프로그램이 읽고, 이름은 마우스를 올리면 나온다 */
     enabled: 'Blocking',
     enabledHint: 'When off, blocked comments show as usual · No CleanTube button on comments',

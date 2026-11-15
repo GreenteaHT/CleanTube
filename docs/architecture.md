@@ -47,7 +47,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 | `youtube.content/source.ts` | (index.ts에 번들됨) | 차단할 때 그 댓글의 주소, 영상 제목, 내용을 읽는다 |
 | `youtube.content/panel.ts` + `panel.css` | (index.ts에 번들됨) | 디버그 패널. `panel.css`는 `?inline`으로 문자열로 가져와 Shadow DOM 안에만 넣는다 |
 | `youtube-main.content.ts` | content_scripts (`world: MAIN`, `document_start`) | 요청을 받으면 댓글 요소에 채널 ID를 속성으로 적는다 |
-| `popup/` | action.default_popup | 차단 기능 스위치, 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정(표시 방법, 답글 범위, 미리보기), 디버그 패널 스위치 |
+| `popup/` | action.default_popup | 차단 기능 스위치, 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정(표시 방법, 답글 범위, 미리보기), 압축해제일 때만 디버그 패널 버튼 |
 | `options/` | options_ui (`open_in_tab`) | 설정 페이지. 차단 목록(보기와 편집)과 언어 두 탭. 브라우저 탭 하나로 열린다 |
 | `onboarding/` | (manifest에 없음, `onboarding.html`) | 첫 사용 안내. 처음 설치하면 백그라운드가 탭으로 연다 |
 | `background.ts` | background (`service_worker`) | 처음 설치하면(`runtime.onInstalled`, `reason === 'install'`) 첫 사용 안내 탭을 연다. 업데이트되면 열려 있는 유튜브 탭에 새 콘텐츠 스크립트를 넣는다. 아래 "업데이트 뒤 다시 넣기". 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화". 차단 기능이 꺼져 있으면 툴바 아이콘을 회색으로 바꾼다. 아래 "꺼짐 아이콘" |
@@ -128,7 +128,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
 | `display.permanent` | `'hide' \| 'blur' \| 'placeholder'` | 영구 차단된 댓글의 표시 방법. 기본 `hide` |
 | `display.temporary` | 같음 | 임시 차단된 댓글의 표시 방법. 기본 `blur` |
 | `coverReplies` | `{ permanent, temporary }` boolean | 영구·임시 각각, `blur`나 `placeholder`일 때 최상위 댓글의 답글까지 가릴지. 기본 둘 다 꺼짐. `hide`는 이 값과 상관없이 스레드째 숨긴다. 예전에는 둘이 같이 쓰는 boolean 하나였고, 그렇게 저장된 값은 읽을 때 양쪽에 같은 값으로 옮긴다 |
-| `debugPanel` | boolean | 유튜브 화면 오른쪽에 디버그 패널을 띄울지. 기본 꺼짐 |
+| `debugPanel` | boolean | 유튜브 화면 오른쪽에 디버그 패널을 띄울지. 기본 꺼짐. 개발용이라 압축해제로 올렸을 때만 팝업에서 켤 수 있다 |
 | `language` | `'auto' \| 'en' \| 'ko' \| 'ja' \| 'zh-CN' \| 'zh-TW'` | 화면 언어. 기본 `auto`(브라우저 언어를 따름). 아래 "언어" |
 
 `sync:`는 `chrome.storage.sync`라 같은 크롬 계정의 다른 기기와 동기화된다.
@@ -331,7 +331,8 @@ chrome.storage.sync blocked.00 ~ blocked.31
 
 - `hooks/useSettings.ts` `loadSettings()`로 초기값을 읽고 `watchSettings()`로 구독한다. `update(patch)`는 `updateSettings()`를 부르고 그 결과로 바로 그린다.
 - `hooks/useBlocked.ts` `loadBlocked()`로 읽고 `watchBlocked()`로 구독한다. 쓰기는 `blocklist.ts`의 `addBlock`/`removeBlock`을 그대로 내보낸다. 팝업은 읽기만 하고 차단 목록 페이지가 읽고 쓴다.
-- `entrypoints/popup/App.tsx` 맨 위 줄의 차단 기능 스위치, 차단한 수와 "차단 목록 관리" 버튼, 영구 차단 설정(표시 방법, 답글 범위), 임시 차단 설정(기간, 표시 방법, 답글 범위), 디버그 패널 스위치. 폭 360px이고 높이는 크롬 팝업 한도인 600px 안에 들어가게 잡았다. 실측 590px(다섯 언어, 기간 "직접"을 펼친 것까지). 동기화 한도 안내가 뜨면 넘어서 조금 스크롤된다.
+- `entrypoints/popup/App.tsx` 맨 위 줄의 차단 기능 스위치, 차단한 수와 "차단 목록 관리" 버튼, 영구 차단 설정(표시 방법, 답글 범위), 임시 차단 설정(기간, 표시 방법, 답글 범위). 폭 360px이고 높이는 크롬 팝업 한도인 600px 안에 들어가게 잡았다. 실측 534px, 기간 "직접"을 펼치면 543px.
+  - 디버그 패널 버튼은 압축해제로 올렸을 때만 맨 위 줄의 "설정" 왼쪽에 있다. 벌레 아이콘 하나이고 켜져 있으면 바탕을 칠한다(`aria-pressed`). 개발하면서만 쓰는 것이라 스토어에서 설치한 사람에게는 없다. 설치 종류는 `hooks/useUnpacked.ts`가 `management.getSelf()`의 `installType`(`development`)으로 안다. 이 함수는 `management` 권한 없이 쓸 수 있다.
   - 차단 기능 스위치는 맨 위 줄 오른쪽 끝, "설정" 옆에 스위치만 있다(`Switch`의 `hideText`). 이름과 설명은 화면 읽기 프로그램이 읽고, 이름은 마우스를 올리면 나온다. 꺼도 아래 설정은 그대로 바꿀 수 있다.
   - 표시 방법은 세 칸 버튼(`Segmented`)으로 고른다. "답글도 함께 가리기"는 "표시 방법" 이름표 줄 오른쪽의 작은 스위치(`Switch`의 `compact`)다. "기간" 줄의 직접 입력과 같은 자리라 줄이 늘지 않는다. 설명은 화면 읽기 프로그램이 읽고 마우스를 올리면 나온다. 완전히 숨기기면 켜진 채 바꿀 수 없다(첫 사용 안내와 같다).
   - 그 아래 미리보기(`ModePreview`)는 유튜브 댓글 하나와 답글 하나를 작게 그린다. 부품은 첫 사용 안내의 예시와 같은 `components/YoutubeComment.tsx`이고, 가리는 일도 `applyDisplay`와 `style.css`가 한다. 그래서 표시 방법이나 답글 스위치를 바꾸면 유튜브에서처럼 움직인다. 예시 글은 첫 사용 안내와 같다(영구는 스포일러, 임시는 말다툼). 처음 그릴 때의 높이를 `min-height`로 붙잡아 어떤 모습이든 팝업 높이가 그대로다. 완전히 숨기기로 스레드가 빠지면 빈 자리에 "이 자리에 아무것도 안 남음"이 나온다. 문구로 바꾸기의 한 줄은 유튜브에서의 위아래 여백만 뺐다. 그대로면 작게 그린 댓글보다 높아 팝업이 길어진다. 미리보기는 `aria-hidden`이고 `inert`라 탭 이동과 마우스에서 빠진다.
