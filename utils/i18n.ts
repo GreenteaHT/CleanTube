@@ -30,6 +30,11 @@ export const LOCALE_NAMES: Record<Locale, string> = {
   'zh-TW': '中文（繁體）',
 };
 
+/** 저장소에서 읽은 값이 이 버전이 아는 언어 설정인지. 더 새 버전을 쓰는 다른 PC가 모르는 언어를 동기화로 보낼 수 있다. */
+export function isLanguageSetting(value: unknown): value is LanguageSetting {
+  return value === 'auto' || LOCALES.some((locale) => locale === value);
+}
+
 const MESSAGES: Record<Locale, Messages> = { en, ko, ja, 'zh-CN': zhCN, 'zh-TW': zhTW };
 
 /** 번체를 쓰는 지역. 이 밖의 중국어(본토, 싱가포르, 지역 없는 zh)는 간체 */

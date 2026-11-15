@@ -1,6 +1,8 @@
 import { storage } from '#imports';
 import { DAY_MS } from './duration';
-import type { LanguageSetting } from './i18n';
+import { isLanguageSetting, type LanguageSetting } from './i18n';
+
+const DISPLAY_MODES = ['hide', 'blur', 'placeholder'] as const;
 
 /**
  * 차단된 댓글을 보여 주는 방법.
@@ -8,7 +10,11 @@ import type { LanguageSetting } from './i18n';
  * - blur: 흐리게 하고, 마우스를 올리면 "숨긴 항목 보기"가 나온다.
  * - placeholder: "차단된 댓글" 한 줄로 바꾸고 "숨긴 항목 보기"를 둔다.
  */
-export type DisplayMode = 'hide' | 'blur' | 'placeholder';
+export type DisplayMode = (typeof DISPLAY_MODES)[number];
+
+function isDisplayMode(value: unknown): value is DisplayMode {
+  return DISPLAY_MODES.some((mode) => mode === value);
+}
 
 /** 차단 목록은 여기 없다. 커질 수 있어서 utils/blocklist.ts가 storage.local에 따로 둔다. */
 export interface Settings {
@@ -59,16 +65,20 @@ export async function loadSettings(): Promise<Settings> {
   return withDefaults(await settingsItem.getValue());
 }
 
-/** 다른 창에서 바꾼 값을 덮어쓰지 않도록 최신 값을 읽어서 병합한다. 병합한 결과를 돌려준다. */
+/**
+ * 다른 창에서 바꾼 값을 덮어쓰지 않도록 최신 값을 읽어서 병합한다. 병합한 결과를 돌려준다.
+ * 저장된 값 그대로에 병합한다. withDefaults()를 거친 값에 병합하면, 더 새 버전이 적어 둔 값(이 버전이 모르는 언어 같은 것)을
+ * 기본값으로 바꿔 써서 그 PC의 설정까지 되돌린다.
+ */
 export async function updateSettings(patch: SettingsPatch): Promise<Settings> {
-  const current = await loadSettings();
+  const stored = await settingsItem.getValue();
   const next: Settings = {
-    ...current,
+    ...stored,
     ...patch,
-    display: { ...current.display, ...patch.display },
+    display: { ...stored.display, ...patch.display },
   };
   await settingsItem.setValue(next);
-  return next;
+  return withDefaults(next);
 }
 
 export function watchSettings(callback: (settings: Settings) => void): () => void {
@@ -76,14 +86,19 @@ export function watchSettings(callback: (settings: Settings) => void): () => voi
 }
 
 /**
- * 전에 저장된 객체에는 나중에 추가한 필드가 없을 수 있다. fallback은 값이 통째로 없을 때만 쓰이므로
- * 읽을 때마다 DEFAULT_SETTINGS 위에 덮어 쓴다.
+ * 저장된 값을 이 버전이 쓸 수 있는 설정으로. 다른 버전이 쓴 값일 수 있어서 그대로 믿지 않는다.
+ * - 전에 저장된 객체에는 나중에 추가한 필드가 없다. fallback은 값이 통째로 없을 때만 쓰이므로 읽을 때마다 DEFAULT_SETTINGS 위에 덮어 쓴다.
+ * - 더 새 버전이 쓴 객체에는 이 버전이 모르는 언어나 표시 방법이 있을 수 있다. 그대로 쓰면 글을 못 찾아 화면이 죽는다. 기본값으로 읽는다.
  */
 function withDefaults(value: Partial<Settings> | null | undefined): Settings {
+  const display = value?.display;
   return {
     ...DEFAULT_SETTINGS,
     ...value,
-    // 안쪽 객체도 필드가 나중에 늘 수 있어서 한 겹 더 덮어 쓴다
-    display: { ...DEFAULT_SETTINGS.display, ...value?.display },
+    display: {
+      permanent: isDisplayMode(display?.permanent) ? display.permanent : DEFAULT_SETTINGS.display.permanent,
+      temporary: isDisplayMode(display?.temporary) ? display.temporary : DEFAULT_SETTINGS.display.temporary,
+    },
+    language: isLanguageSetting(value?.language) ? value.language : DEFAULT_SETTINGS.language,
   };
 }

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { LOCALES, messagesFor, resolveLocale } from '../utils/i18n';
+import { LOCALES, isLanguageSetting, messagesFor, resolveLocale } from '../utils/i18n';
+
+describe('isLanguageSetting', () => {
+  it('auto와 다섯 언어만 받는다. 더 새 버전이 동기화로 보낸 모르는 언어는 받지 않는다', () => {
+    for (const setting of ['auto', ...LOCALES]) expect(isLanguageSetting(setting)).toBe(true);
+    for (const setting of ['de', 'zh', 'KO', '', undefined, null, 1]) expect(isLanguageSetting(setting)).toBe(false);
+  });
+});
 
 describe('resolveLocale', () => {
   it('언어를 골랐으면 브라우저 언어와 상관없이 그 언어', () => {
