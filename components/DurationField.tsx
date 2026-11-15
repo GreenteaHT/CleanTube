@@ -5,6 +5,9 @@ import { DAY_MS, HOUR_MS, formatDuration } from '@/utils/duration';
 
 const DURATION_PRESETS = [DAY_MS, 7 * DAY_MS, 30 * DAY_MS];
 
+/** 직접 입력의 가장 큰 수. 입력칸의 max는 브라우저가 알려 주기만 하고 막지 않아서 저장할 때도 본다. */
+const MAX_AMOUNT = 9999;
+
 /**
  * 댓글 메뉴의 "임시 차단"이 쓰는 기간. 고정 항목 셋 또는 직접 입력(시간이나 일). 팝업과 첫 사용 안내가 쓴다.
  * 모양은 assets/base.css의 .field.
@@ -19,7 +22,7 @@ export default function DurationField(props: { value: number; onChange: (ms: num
 
   const commit = (text: string, unitMs: number) => {
     const n = Number(text);
-    if (Number.isInteger(n) && n > 0) props.onChange(n * unitMs);
+    if (Number.isInteger(n) && n > 0 && n <= MAX_AMOUNT) props.onChange(n * unitMs);
   };
 
   const options: SegmentedOption<number | 'custom'>[] = [
@@ -39,7 +42,7 @@ export default function DurationField(props: { value: number; onChange: (ms: num
               type="number"
               className="mono"
               min={1}
-              max={9999}
+              max={MAX_AMOUNT}
               step={1}
               value={amount}
               aria-label={t.duration.amount}

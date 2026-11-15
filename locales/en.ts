@@ -12,6 +12,10 @@ export interface SampleComment {
   likes: string;
 }
 
+/** 동기화 공간이 모자라 담지 못한 차단. 짧은 안내와 긴 안내가 같이 쓴다. 하나일 때는 단수로 */
+const oldestUnsynced = (n: number) =>
+  n === 1 ? "1 oldest block doesn't sync to other devices" : `${n} oldest blocks don't sync to other devices`;
+
 export const en = {
   common: {
     loading: 'Loading…',
@@ -41,10 +45,10 @@ export const en = {
     days: 'days',
   },
   sync: {
-    overShort: (n: number) => `${n} oldest blocks don't sync to other devices`,
+    overShort: oldestUnsynced,
     nearShort: (percent: number) => `Sync storage ${percent}% used`,
     overLong: (n: number) =>
-      `Sync storage full · ${n} oldest blocks don't sync to other devices · Still hidden on this device`,
+      `Sync storage full · ${oldestUnsynced(n)} · Still hidden on this device`,
     nearLong: (percent: number) =>
       `Sync storage ${percent}% used · When full, the oldest blocks stop syncing first`,
   },
