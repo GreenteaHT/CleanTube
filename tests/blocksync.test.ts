@@ -10,7 +10,7 @@ import {
   unpackBuckets,
   type BlockState,
 } from '../utils/blocksync';
-import type { BlockEntry } from '../utils/matcher';
+import { findBlock, type BlockEntry } from '../utils/matcher';
 
 const NOW = 1_800_000_000_000;
 const ID = 'UCrKxP6IDEsFLuX_g8bx-43w';
@@ -59,10 +59,28 @@ describe('mergeStates: 차단', () => {
     ]);
   });
 
-  it('기간이 끝난 임시 차단은 어느 쪽에서 왔든 버린다', () => {
-    const local = state([{ channelId: ID, at: NOW - 100, until: NOW - 1 }]);
-    const remote = state([{ channelId: OTHER_ID, at: NOW - 100, until: NOW }]);
+  it('기간이 끝난 임시 차단은 끝난 뒤 30일이 지나면 어느 쪽에서 왔든 버린다', () => {
+    const local = state([{ channelId: ID, at: NOW - 100, until: NOW - REMOVED_TTL_MS - 1 }]);
+    const remote = state([{ channelId: OTHER_ID, at: NOW - 100, until: NOW - REMOVED_TTL_MS }]);
     expect(mergeStates(local, remote, NOW).entries).toEqual([]);
+  });
+
+  it('기간이 끝난 임시 차단도 30일 동안은 남긴다', () => {
+    const local = state([{ channelId: ID, at: NOW - 100, until: NOW - 1 }]);
+    const remote = state([{ channelId: OTHER_ID, at: NOW - 100, until: NOW - REMOVED_TTL_MS + 1 }]);
+    expect(mergeStates(local, remote, NOW).entries.map((e) => e.channelId)).toEqual([ID, OTHER_ID]);
+  });
+
+  it('영구를 임시로 바꾼 뒤 기간이 끝나도, 옛 목록을 들고 있던 PC가 영구 차단을 되살리지 않는다', () => {
+    const expired: BlockEntry = { channelId: ID, at: NOW - 200, until: NOW - 100 };
+    const stale = state([{ channelId: ID, handle: '@a', at: NOW - 300 }]);
+    // 임시로 바꾼 PC: 꺼져 있던 PC가 옛 영구 차단을 sync에 올렸다
+    const here = mergeStates(state([expired]), roundTrip(stale), NOW);
+    expect(here.entries).toEqual([expired]);
+    // 꺼져 있던 PC: sync에서 끝난 임시 차단을 받는다
+    const there = mergeStates(stale, roundTrip(here), NOW);
+    expect(there.entries).toEqual([expired]);
+    expect(findBlock({ channelId: ID }, there.entries, NOW)).toBeNull();
   });
 
   it('이 PC의 순서를 지키고 새로 온 것은 차단한 시각 순으로 뒤에 붙인다', () => {

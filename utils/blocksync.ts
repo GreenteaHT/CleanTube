@@ -4,14 +4,14 @@
  * 읽고 쓰는 쪽은 utils/blocklist.ts, 언제 맞출지는 entrypoints/background.ts가 정한다.
  */
 import { DAY_MS } from './duration';
-import { entryKey, isExpired, type BlockEntry } from './matcher';
+import { entryKey, type BlockEntry } from './matcher';
 
 /** 한 PC의 차단 목록과, 언제 무엇을 뺐는지. */
 export interface BlockState {
   entries: BlockEntry[];
   /**
    * 뺀 항목의 키와 뺀 시각(epoch ms). 다른 PC가 아직 그 항목을 들고 있다가 되살리지 않게 남긴다.
-   * 기간이 끝난 임시 차단은 어느 PC에서나 똑같이 끝나므로 여기 적지 않는다.
+   * 기간이 끝난 임시 차단은 여기 적지 않는다. 그 항목이 entries에 한동안 남아서 같은 일을 한다(canForget).
    */
   removed: Record<string, number>;
 }
@@ -46,7 +46,7 @@ const BUCKET_PREFIX = 'blocked.';
 export const SYNC_BUDGET_BYTES = 102_400 - 2_048;
 /** chrome.storage.sync의 키 하나 한도(QUOTA_BYTES_PER_ITEM). 키 이름 길이도 포함된다. */
 const ITEM_LIMIT_BYTES = 8_192;
-/** 뺀 기록을 남겨 두는 기간. 이보다 오래 꺼져 있던 PC는 뺀 항목을 되살릴 수 있다. 임시값. */
+/** 뺀 기록과 기간이 끝난 임시 차단을 남겨 두는 기간. 이보다 오래 꺼져 있던 PC는 그 항목의 옛 차단을 되살릴 수 있다. 임시값. */
 export const REMOVED_TTL_MS = 30 * DAY_MS;
 /** 이만큼 차면 안내한다. 임시값. */
 const WARN_RATIO = 0.9;
@@ -61,8 +61,18 @@ export function isBucketKey(key: string): boolean {
 }
 
 /**
+ * 기간이 끝난 임시 차단을 목록에서 치워도 되는지. 끝나자마자 치우지 않고 REMOVED_TTL_MS 동안 남겨 둔다.
+ * 영구 차단을 임시로 바꾸면 같은 키의 항목이 바뀔 뿐 빼기 기록이 남지 않는다. 기간이 끝났다고 바로 치우면,
+ * 그동안 꺼져 있던 PC가 들고 온 옛 영구 차단을 막을 것이 없어 모든 PC에 되살아난다. 남겨 두면 더 나중에 한 이 항목이 이긴다.
+ * 매칭과 화면은 끝난 항목을 건너뛰므로 남아 있어도 가려지지 않는다.
+ */
+export function canForget(entry: BlockEntry, now: number): boolean {
+  return entry.until !== undefined && entry.until + REMOVED_TTL_MS <= now;
+}
+
+/**
  * 두 PC의 상태를 항목마다 합친다. 더 나중에 한 쪽이 이긴다. 차단은 차단한 시각, 빼기는 뺀 시각으로 비교한다.
- * 기간이 끝난 임시 차단과 REMOVED_TTL_MS보다 오래된 빼기 기록은 버린다.
+ * 기간이 끝난 지 오래된 임시 차단(canForget)과 REMOVED_TTL_MS보다 오래된 빼기 기록은 버린다.
  * 바뀐 것이 없으면 local의 항목 객체와 순서를 그대로 돌려준다. 그래야 쓸 필요가 있는지 비교할 수 있다.
  */
 export function mergeStates(local: BlockState, remote: BlockState, now: number): BlockState {
@@ -72,7 +82,7 @@ export function mergeStates(local: BlockState, remote: BlockState, now: number):
   const entries: BlockEntry[] = [];
   const kept = new Set<string>();
   const keep = (key: string, entry: BlockEntry) => {
-    if (kept.has(key) || isExpired(entry, now) || timeOf(entry) <= removedAt(key)) return;
+    if (kept.has(key) || canForget(entry, now) || timeOf(entry) <= removedAt(key)) return;
     kept.add(key);
     entries.push(entry);
   };

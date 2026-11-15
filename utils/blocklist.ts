@@ -2,6 +2,7 @@ import { browser, storage, type StorageItemKey } from '#imports';
 import {
   BUCKET_COUNT,
   bucketKey,
+  canForget,
   isBucketKey,
   mergeStates,
   packState,
@@ -10,7 +11,7 @@ import {
   type BlockState,
   type SyncStatus,
 } from './blocksync';
-import { entryKey, isExpired, matches, type Author, type BlockEntry } from './matcher';
+import { entryKey, matches, type Author, type BlockEntry } from './matcher';
 
 /**
  * 차단 목록. 'local:' = chrome.storage.local. 유튜브 탭, 팝업, 차단 목록 페이지는 이것만 읽고 쓴다.
@@ -78,13 +79,13 @@ export async function unblockAuthor(author: Author): Promise<void> {
 
 /**
  * 다른 창에서 바꾼 것을 덮어쓰지 않도록 최신 값을 읽어서 고친다.
- * 만료된 임시 차단은 매칭에서 이미 무시되고 있으므로, 쓰는 김에 여기서 치운다.
+ * 기간이 끝난 임시 차단은 매칭에서 이미 무시되고 있다. 끝난 지 오래된 것(canForget)은 쓰는 김에 여기서 치운다.
  * 뺀 항목은 뺀 시각을 남기고, 다시 넣은 항목은 그 기록을 지운다. 목록과 기록은 한 번에 쓴다.
  */
 async function update(change: (entries: BlockEntry[]) => BlockEntry[]) {
   const now = Date.now();
   const [current, removed] = await Promise.all([loadBlocked(), removedItem.getValue()]);
-  const before = current.filter((e) => !isExpired(e, now));
+  const before = current.filter((e) => !canForget(e, now));
   const after = change(before);
   const kept = new Set(after.map(entryKey));
   const nextRemoved = { ...removed };
