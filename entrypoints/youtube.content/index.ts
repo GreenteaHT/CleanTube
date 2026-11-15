@@ -59,19 +59,25 @@ export default defineContentScript({
       // 확장이 꺼지거나 지워진 것은 아무도 알려 주지 않는다. isInvalid를 읽어야 알게 되고, 그때 아래 onInvalidated가 돈다.
       // 끊긴 채로 계속 돌면 옛 목록으로 가리고, 떼 줄 것이 없는 가림이 남는다.
       if (ctx.isInvalid) return;
-      // 새로 붙은 댓글은 여기서 바로 처리한다. 이 콜백은 DOM이 바뀐 직후, 화면에 칠하기 전에 돌아서
+      // 새로 붙은 댓글과 다른 사람의 댓글이 된 요소는 여기서 바로 처리한다. 이 콜백은 DOM이 바뀐 직후, 화면에 칠하기 전에 돌아서
       // 이미 차단된 작성자의 댓글이 한 번도 보이지 않는다. 나머지는 묶어서 스캔한다.
-      const added = addedComments(records);
-      if (added.length > 0) {
+      const changed = changedComments(records);
+      if (changed.size > 0) {
         requestChannelIds();
         const now = Date.now();
-        for (const el of added) applyOne(el, now, false);
+        for (const el of changed) applyOne(el, now, false);
       }
       // 스캔이 메뉴 버튼과 가림막을 넣으면 그것도 DOM 변경이라 여기로 돌아온다. 그때마다 스캔을 걸면
-      // 스캔이 스캔을 부른다. 우리 요소만 바뀐 변경에는 다시 볼 것이 없다.
-      if (records.some((record) => !isOwnChange(record))) schedule();
+      // 스캔이 스캔을 부른다. 우리 요소만 바뀐 변경에는 다시 볼 것이 없다. href가 바뀐 것은 위에서 다 봤다.
+      if (records.some((record) => record.type === 'childList' && !isOwnChange(record))) schedule();
     });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    // href는 댓글 요소가 다른 댓글에 다시 쓰이는 것을 알려고 본다. changedComments() 참고.
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['href'],
+    });
     // 확장이 꺼지거나 업데이트되면 이 스크립트는 끊겨서 저장소를 더 듣지 못한다. 붙여 둔 가림을 그대로 두면 해제해도 풀리지 않는다.
     // 업데이트면 백그라운드가 새 스크립트를 넣고, 그것이 처음부터 다시 가린다.
     ctx.onInvalidated(() => {
@@ -238,23 +244,40 @@ export default defineContentScript({
   },
 });
 
+/**
+ * 영상 페이지 댓글 헤더의 작성자 링크(a#author-text)의 id. 글자는 채널명이 아니라 "@handle"이고 href는 그 채널의 주소다.
+ * 인증·크리에이터 배지가 붙은 댓글은 이 링크가 hidden이 되고 배지가 대신 보이지만 글자는 남아 있다.
+ */
+const AUTHOR_ID = 'author-text';
+
 function readAuthor(comment: HTMLElement): Author {
   return {
-    // 영상 페이지 댓글 헤더의 작성자 링크. 글자는 채널명이 아니라 "@handle"이다.
-    // 인증·크리에이터 배지가 붙은 댓글은 이 링크가 hidden이 되고 배지가 대신 보이지만 글자는 남아 있다.
     // href의 핸들은 한글·일본어면 %로 인코딩돼 있어 쓰지 않는다.
-    handle: comment.querySelector('#author-text')?.textContent?.trim() || undefined,
+    handle: comment.querySelector(`#${AUTHOR_ID}`)?.textContent?.trim() || undefined,
     channelId: comment.getAttribute(CHANNEL_ID_ATTR) ?? undefined,
   };
 }
 
-function addedComments(records: MutationRecord[]): HTMLElement[] {
-  const out: HTMLElement[] = [];
+/**
+ * 이 변경 묶음에서 바로 다시 봐야 할 댓글. 새로 붙은 것과, 그대로 있으면서 다른 사람의 댓글이 된 것.
+ * 유튜브는 댓글 정렬을 바꾸면 요소를 그대로 두고 내용만 바꾼다(2026-11-15 실측). 붙는 요소가 없고 작성자 글자도 글자만 바뀌어서
+ * childList로는 알 수 없다. 작성자 링크의 href가 같이 바뀌는 것으로 안다. 작성자가 같으면 href가 그대로라 오지 않고, 그때는 다시 볼 것도 없다.
+ * 새로 붙은 댓글도 href가 한 번 바뀌므로 Set으로 모아 한 번만 처리한다.
+ */
+function changedComments(records: MutationRecord[]): Set<HTMLElement> {
+  const out = new Set<HTMLElement>();
   for (const record of records) {
+    if (record.type === 'attributes') {
+      // 감시가 href만 받게 걸려 있다. 유튜브 화면의 다른 링크들도 오므로 작성자 링크만 고른다
+      const link = record.target as Element;
+      const comment = link.id === AUTHOR_ID ? link.closest<HTMLElement>(COMMENT_SELECTOR) : null;
+      if (comment) out.add(comment);
+      continue;
+    }
     for (const node of record.addedNodes) {
       if (!(node instanceof HTMLElement)) continue;
-      if (node.matches(COMMENT_SELECTOR)) out.push(node);
-      else out.push(...node.querySelectorAll<HTMLElement>(COMMENT_SELECTOR));
+      if (node.matches(COMMENT_SELECTOR)) out.add(node);
+      else for (const comment of node.querySelectorAll<HTMLElement>(COMMENT_SELECTOR)) out.add(comment);
     }
   }
   return out;
