@@ -73,9 +73,9 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
   - 항목 기준. `addBlock(entry)`는 키가 같은 기존 항목을 새 항목으로 바꾸고, `removeBlock(entry)`는 키가 같은 항목을 뺀다. 차단 목록 페이지와 패널의 해제처럼 항목 하나를 골라서 다룰 때 쓴다.
   - 작성자 기준. `blockAuthor(author, entry)`는 그 작성자에게 걸린 항목을 모두 빼고 `entry` 하나를 넣는다. `unblockAuthor(author)`는 모두 빼기만 한다. 유튜브 화면에서 댓글을 보고 차단하거나 풀 때 쓴다.
   - 작성자 기준이 따로 있는 이유. 같은 사람이 키가 다른 항목 여럿에 걸려 있을 수 있다. 차단 목록 페이지에서 손으로 넣은 핸들 항목은 키가 핸들이고, 메뉴로 넣은 항목은 키가 채널 ID다. 키가 같은 것만 바꾸면 영구를 임시로 바꿔도 남은 영구 항목이 이긴다. 빼기와 넣기는 한 번의 쓰기라서 그 사이에 풀린 상태가 화면에 나오지 않는다.
-- 넷 다 쓰기 전에 최신 값을 다시 읽고, 만료된 임시 차단을 같이 치운다.
-- 만료는 지우는 게 아니라 무시하는 것이다. 매칭이 만료된 항목을 건너뛰므로 치우는 건 다음에 쓸 때로 미뤄도 된다.
-- 넷 다 뺀 항목의 키와 뺀 시각을 `local:blockedRemoved`(`Record<키, epoch ms>`)에 남기고, 다시 넣은 항목은 그 기록을 지운다. 목록과 기록은 한 번에 쓴다. 다른 PC가 아직 그 항목을 들고 있다가 되살리지 않게 하려는 것이다. 기간이 끝난 임시 차단은 어느 PC에서나 똑같이 끝나므로 적지 않는다.
+- 넷 다 쓰기 전에 최신 값을 다시 읽고, 기간이 끝난 지 30일이 넘은 임시 차단(`canForget`)을 같이 치운다.
+- 만료는 지우는 게 아니라 무시하는 것이다. 매칭, 팝업의 수, 차단 목록이 만료된 항목을 건너뛴다. 끝난 항목은 30일 동안 목록에 남는다. 이유는 아래 "차단 목록 동기화"의 `canForget`.
+- 넷 다 뺀 항목의 키와 뺀 시각을 `local:blockedRemoved`(`Record<키, epoch ms>`)에 남기고, 다시 넣은 항목은 그 기록을 지운다. 목록과 기록은 한 번에 쓴다. 다른 PC가 아직 그 항목을 들고 있다가 되살리지 않게 하려는 것이다. 기간이 끝난 임시 차단은 적지 않는다. 남아 있는 그 항목이 같은 일을 한다.
 
 ### 차단 목록 동기화: `entrypoints/background.ts`, `utils/blocksync.ts`
 
@@ -106,7 +106,8 @@ chrome.storage.sync blocked.00 ~ blocked.31
 
 - `mergeStates(local, remote, now)` 항목마다 더 나중에 한 쪽이 이긴다. 차단은 `at`, 빼기는 뺀 시각으로 비교하고, 같으면 빼기가 이긴다. `at`이 없는 예전 항목은 0으로 친다.
   - 같은 사람의 차단이 양쪽에 있고 시각이 같으면 이 PC의 것을 쓴다(경위가 붙어 있다). 다른 PC가 나중에 다시 차단했으면 그것을 쓰되 이 PC의 경위는 옮겨 붙인다.
-  - 기간이 끝난 임시 차단과 30일(`REMOVED_TTL_MS`, 임시값)보다 오래된 빼기 기록은 버린다. 그보다 오래 꺼져 있던 PC는 뺀 항목을 되살릴 수 있다.
+  - 30일(`REMOVED_TTL_MS`, 임시값)보다 오래된 빼기 기록과, 기간이 끝난 지 30일이 넘은 임시 차단(`canForget(entry, now)`)은 버린다. 그보다 오래 꺼져 있던 PC는 뺀 항목이나 옛 차단을 되살릴 수 있다.
+  - 기간이 끝난 임시 차단을 바로 버리지 않는 이유. 영구 차단을 임시로 바꾸면 같은 키의 항목이 바뀔 뿐 빼기 기록이 남지 않는다. 끝나자마자 버리면, 그동안 꺼져 있던 PC가 들고 온 옛 영구 차단을 막을 것이 없어 모든 PC에 되살아난다. 남겨 두면 더 나중에 한 그 항목이 이긴다. 남아 있는 동안 sync의 자리도 쓴다.
   - sync에서 항목이 사라진 것은 빼기가 아니다. 빼기는 빼기 기록으로만 전한다. 그래서 공간이 모자라 sync에서 밀려난 항목도 이미 받은 PC에는 남는다.
   - 바뀐 게 없으면 local의 객체와 순서를 그대로 돌려준다. `sameState()`로 쓸 필요가 있는지 가린다.
 - `packState(state)` sync에 담을 모양. 32개 키(`blocked.00`~`blocked.31`)에 항목의 키를 해시(FNV-1a)해 나눠 담는다. 항목 하나를 바꾸면 sync 키 하나만 다시 쓴다.
@@ -133,9 +134,12 @@ chrome.storage.sync blocked.00 ~ blocked.31
 `sync:`는 `chrome.storage.sync`라 같은 크롬 계정의 다른 기기와 동기화된다.
 
 - `loadSettings()` 전체를 읽는다. `watchSettings(callback)` 변경을 구독한다.
-- `updateSettings(patch)` 최신 값을 다시 읽어 병합한 뒤 저장하고, 병합한 결과를 돌려준다. 다른 창에서 바꾼 값을 덮어쓰지 않기 위해서다. `display`는 한쪽만 넘겨도 된다(`SettingsPatch`).
+- `updateSettings(patch)` 최신 값을 다시 읽어 병합한 뒤 저장하고, 병합한 결과를 돌려준다. 다른 창에서 바꾼 값을 덮어쓰지 않기 위해서다. `display`는 한쪽만 넘겨도 된다(`SettingsPatch`). 저장된 값 그대로에 병합한다. 아래처럼 고쳐 읽은 값에 병합하면 더 새 버전이 적어 둔 값을 기본값으로 바꿔 쓴다.
 
-`fallback`은 값이 통째로 없을 때만 쓰인다. 전에 저장된 객체에는 나중에 추가한 필드가 빠져 있으므로, 읽고 구독하는 함수가 `DEFAULT_SETTINGS` 위에 덮어 쓴다. `display`는 안쪽 객체라 한 겹 더 덮어 쓴다.
+저장된 값은 그대로 믿지 않고 읽을 때마다 고쳐 읽는다(`withDefaults`). 동기화되는 값이라 다른 버전이 쓴 것일 수 있다.
+
+- `fallback`은 값이 통째로 없을 때만 쓰인다. 전에 저장된 객체에는 나중에 추가한 필드가 빠져 있으므로 `DEFAULT_SETTINGS` 위에 덮어 쓴다.
+- 이 버전이 모르는 `language`(`isLanguageSetting`)나 표시 방법은 기본값으로 읽는다. 더 새 버전을 쓰는 다른 PC가 보낼 수 있고, 그대로 쓰면 그 언어의 글을 못 찾아 팝업, 설정 페이지, 유튜브 화면의 스크립트가 죽는다.
 
 `enabled`도 `sync:settings` 안이라 한 PC에서 끄면 같은 계정의 다른 PC도 꺼진다.
 
@@ -176,6 +180,10 @@ chrome.storage.sync blocked.00 ~ blocked.31
 3. `watchSettings()`. 차단 기능을 켜고 껐거나 표시 방법이 바뀌었을 수 있으니 다시 스캔한다(사용자가 바꾼 것이라 애니메이션을 켠다). 언어도 다시 고르고, 바뀌었으면 패널을 다시 그린다.
 4. 만료 타이머. 가장 먼저 풀리는 임시 차단 시각에 맞춰 다시 스캔한다. 스캔은 DOM이 바뀔 때만 돌아서, 타이머가 없으면 기간이 끝나도 화면이 바뀔 때까지 가려져 있다. `setTimeout`의 최대 지연(약 24.8일)을 넘는 기간은 그만큼씩 끊어서 다시 건다.
 
+스캔과 만료의 타이머는 WXT의 `ctx.setTimeout`이 아니라 그냥 `setTimeout`으로 걸고 `ctx.onInvalidated` 한 곳에서 치운다. `ctx.setTimeout`은 부를 때마다 정리용 리스너를 하나씩 달고 떼지 않아서(WXT 0.21), 탭이 열려 있는 내내 걸리는 타이머에 쓰면 리스너가 쌓인다.
+
+유튜브는 댓글 정렬을 바꾸면 댓글 요소를 그대로 두고 내용만 바꾼다(2026-11-15 실측, 다른 영상으로 옮길 때는 새 요소다). 이때는 새로 붙은 댓글이 없어서 150ms로 묶은 전체 스캔이 맞춘다. 그 사이 약 160ms 동안 앞 댓글의 가림이 남는다. [backlog.md](backlog.md)에 적어 두었다.
+
 `applyAll()`은 먼저 페이지 세계에 채널 ID를 적어 달라고 요청한다. 그다음 모든 댓글 요소를 돌면서 `applyOne()`을 부른다. `applyOne()`은 작성자를 읽어 `findBlock()`에 넘기고, 걸린 항목이 영구냐 임시냐에 따라 설정에서 표시 방법을 골라 `applyDisplay()`에 넘기고, 메뉴 버튼이 없으면 붙인다. 읽은 값과 결과는 줄 목록으로 모아 패널에 넘긴다.
 
 차단 기능(`enabled`)을 꺼 두면 `applyOne()`은 걸린 항목이 있어도 `applyDisplay()`에 null을 넘겨 가림을 풀고, 메뉴 버튼을 붙이는 대신 뗀다(`menu.detach()`). 스캔은 그대로 돌아서 꺼진 동안 새로 붙은 댓글에서도 떼고, 다시 켜면 다음 스캔에서 가리고 붙인다. 매칭도 그대로 해서 디버그 패널은 꺼져 있을 때도 어느 댓글이 걸리는지 보여 준다. 패널은 자기 설정(`debugPanel`)만 따르고, 차단/해제 버튼도 그대로 목록에 쓴다(화면은 다시 켤 때 바뀐다). "숨긴 항목 보기"로 열어 둔 것은 껐다 켜면 다시 가려진다. 끌 때 가림막과 함께 치우기 때문이다.
@@ -194,8 +202,9 @@ chrome.storage.sync blocked.00 ~ blocked.31
 - 스레드의 상태는 그 스레드의 최상위 댓글만 정한다. 답글은 스레드를 건드리지 않는다.
 - 가림막. `blur`나 `placeholder`로 가린 요소의 첫 자식으로 `data-cleantube-overlay` 요소를 넣는다. "차단된 댓글" 글자와 "숨긴 항목 보기" pill이 들어 있다. `blur`에서는 댓글 위를 덮고 마우스를 올리면 pill만 보인다. `placeholder`에서는 내용 대신 그 한 줄이 보인다.
 - "숨긴 항목 보기"를 누르면 그 요소에 `data-cleantube-revealed`가 붙어 가림이 풀리고 pill이 "다시 가리기"로 바뀐다. 요소에만 적어 두므로 다시 스캔해도 유지되고 페이지를 옮기면 사라진다.
+  - 가린 요소마다 그것을 가리게 한 차단 항목의 키를 기억한다(`coveredBy`). 유튜브가 정렬을 바꾸며 요소를 다른 댓글에 다시 쓰면 키가 달라지고, 그때 열어 둔 상태를 뗀다. 떼지 않으면 앞 댓글에서 열어 둔 것이 다른 사람의 차단된 댓글까지 열어 둔다(실측에서 그랬다).
 - 가림을 풀 때는 속성과 가림막을 같이 치운다.
-- 애니메이션. 사용자가 차단이나 해제를 눌렀을 때만 220ms 동안 움직인다. 스크롤로 새로 붙은 댓글은 바로 적용된다. Web Animations API를 쓰고, 끝 값은 CSS가 정한 것을 읽는다. 가릴 때는 ease-in, 풀 때는 ease-out.
+- 애니메이션. 사용자가 차단이나 해제를 눌렀을 때만 220ms 동안 움직인다. 스크롤로 새로 붙은 댓글은 바로 적용된다. Web Animations API를 쓰고, 끝 값은 CSS가 정한 것을 읽는다. 가릴 때는 ease-in, 풀 때는 ease-out. 운영체제의 "동작 줄이기"(`prefers-reduced-motion`)가 켜져 있으면 움직이지 않고 바로 바꾼다. "숨긴 항목 보기"와 첫 사용 안내의 예시도 같은 코드라 같이 따른다.
   - `hide`: 높이·여백·투명도를 접거나 펼친다. 접힐 때는 끝난 뒤에 속성을 붙인다. 도중에 상태가 또 바뀌면 최신 요청을 기억했다가 끝난 뒤 그대로 맞춘다.
   - `blur`, `placeholder`, "숨긴 항목 보기": 속성을 바꾸기 전후로 요소의 높이와, 자식(내용과 가림막)의 자리·투명도·블러를 재서 달라진 것만 그 사이로 움직인다. 자리가 바뀐 것은 transform으로 원래 자리에서 새 자리로 옮겨 가고, 새로 보이는 것과 모양이 통째로 바뀌는 가림막은 투명한 데서 나타난다. 그래서 흐리게는 블러가 번지고, 자리표시자는 높이가 줄며 가림막이 나타나고, "숨긴 항목 보기"를 누르면 맨 윗줄에 가림막이 나타나며 내용이 밀려 내려온다. 상태 사이의 어떤 전환도 같은 코드로 된다. 속성은 바로 바뀌어 있으므로 끝나면 CSS 값이 그대로 이어진다. 도중에 또 바뀌면 지금 보이는 값에서 새로 시작한다.
   - 순서. 접힐 때는 가려진 모습 그대로 접히게 숨김을 먼저 맞추고, 펼칠 때는 펼친 끝 크기에 가림막이 들어가 있게 가림을 먼저 맞춘다. 숨겨진 요소의 가림은 보이지 않으니 움직이지 않는다.
@@ -227,7 +236,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
 | 값 | 어디서 | 비고 |
 |---|---|---|
 | `url` | 댓글의 작성 시각("6년 전")에 걸린 링크 `#published-time-text a` | `/watch?v=<영상>&lc=<댓글>`. 열면 그 댓글이 맨 위에 강조돼 나온다. 답글은 `lc`가 `부모.답글` 꼴이다. 유튜브 주소가 아니면 남기지 않는다 |
-| `videoTitle` | `ytd-watch-metadata #title yt-formatted-string` | 못 찾으면 `document.title`에서 " - YouTube"를 뗀 것. 150자에서 자른다 |
+| `videoTitle` | 그 댓글이 들어 있는 영상 페이지(`ytd-watch-flexy`)의 `ytd-watch-metadata #title yt-formatted-string` | 못 찾으면 `document.title`에서 " - YouTube"를 뗀 것. 150자에서 자른다. 문서 전체에서 찾지 않는다. 유튜브는 다른 화면으로 가도 보던 영상 페이지를 숨긴 채 남겨 둔다(2026-11-15 실측) |
 | `text` | 댓글 본문 `#content-text` | 유튜브는 이모지를 `<img alt="😭">`로 그려서 `textContent`만 읽으면 빠진다. 그림의 `alt`를 같이 읽는다. 300자에서 자른다 |
 
 차단한 시각은 `at`에 따로 넣는다. 차단 목록 페이지에서 손으로 넣은 항목은 `at`만 있고 `source`는 없다.
@@ -270,6 +279,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
 | `#body > #action-menu` | `youtube.content/menu.ts` | 댓글 오른쪽, 유튜브가 ⋮ 메뉴를 두는 자리. 로그아웃이면 유튜브 버튼은 `hidden`이고 자리만 있다 |
 | `#published-time-text a` | `youtube.content/source.ts` | 댓글 헤더의 작성 시각에 걸린 링크. 그 댓글의 고유 주소 |
 | `#content-text` | `youtube.content/source.ts` | 댓글 본문 |
+| `ytd-watch-flexy` | `youtube.content/source.ts` | 영상 페이지 전체를 감싸는 요소. 댓글도 이 안에 있다. 다른 화면으로 가면 `hidden`으로 남는다 |
 | `ytd-watch-metadata #title yt-formatted-string` | `youtube.content/source.ts` | 영상 페이지에서 플레이어 아래의 영상 제목 |
 | `html[dark]` | `style.css`, `youtube.content/menu.ts` | 유튜브가 어두운 테마를 표시하는 속성 |
 | `commentEntity.author.channelId` | `youtube-main.content.ts` | 유튜브가 댓글 요소에 달아 두는 데이터. 셀렉터가 아니라 JS 프로퍼티 |
@@ -285,7 +295,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
   - 한쪽이라도 채널 ID가 없으면 핸들로 본다. trim, 소문자, 앞의 `@` 제거로 정규화한 뒤 정확히 일치. 유튜브 구조가 바뀌어 채널 ID를 못 읽게 돼도 차단이 유지된다.
   - 만료된 임시 차단은 건너뛴다. 영구와 임시가 둘 다 걸리면 영구를 돌려준다.
 - `matches(author, entry)` 항목 하나가 `author`에게 걸리는지. `findBlock()`이 쓰는 위의 규칙이고 만료는 따지지 않는다. `blocklist.ts`가 작성자에게 걸린 항목을 뺄 때 쓴다.
-- `parseEntry(text)` 손으로 입력한 글자를 항목으로. `UC` + 22자 모양이면 채널 ID, 아니면 핸들.
+- `parseEntry(text)` 손으로 입력한 글자를 항목으로. `UC` + 22자 모양이면 채널 ID, 아니면 핸들. 채널 주소(`youtube.com/@handle`, `youtube.com/channel/UC…`)를 붙여 넣으면 그 안의 핸들이나 채널 ID를 꺼낸다(%로 인코딩된 핸들은 푼다). 채널을 알 수 없는 주소와 공백이 있는 글은 null이라 추가 버튼이 눌리지 않는다. 그대로 넣으면 아무에게도 걸리지 않는 항목이 된다.
 - `entryKey(entry)` 같은 대상을 가리키는 항목인지 가리는 키. 목록에서 중복을 막고, 속성 값으로도 쓴다.
 - `isExpired(entry, now)`.
 
@@ -334,7 +344,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
   - 칸 너비가 같은 묶음(`sliding`, 기본)은 고른 칸 뒤에 색 덩어리(`.segmented-thumb`)를 깔고, 고른 칸이 바뀌면 덩어리가 200ms 동안 미끄러져 옮겨 간다. 칸 수와 순서는 `--count`, `--index`로 CSS에 넘긴다. 아무것도 고르지 않았으면 덩어리를 감춘다. 칸 너비가 글자마다 다른 정렬 버튼은 `sliding={false}`로 고른 칸만 칠한다.
 - `components/displayModes.ts` 표시 방법의 선택지와 이름(`displayModeOptions(t)`, `displayModeLabel(mode, t)`), 언어 선택지(`languageOptions(t, browserLocale)`). 팝업, 설정, 첫 사용 안내가 쓴다.
 - `hooks/useI18n.tsx` `I18nProvider`와 `useI18n()`. 위 "언어".
-- `components/DurationField.tsx` 임시 차단 기간. 1일·7일·30일·직접 네 칸이고 ms 하나로 저장한다. 직접을 고르면 "기간" 줄 오른쪽에 숫자와 시간/일이 나오고, 고르기만 해서는 저장하지 않는다. 팝업과 첫 사용 안내가 쓴다.
+- `components/DurationField.tsx` 임시 차단 기간. 1일·7일·30일·직접 네 칸이고 ms 하나로 저장한다. 직접을 고르면 "기간" 줄 오른쪽에 숫자와 시간/일이 나오고, 고르기만 해서는 저장하지 않는다. 1~9999의 정수만 저장한다(입력칸의 `max`는 브라우저가 막아 주지 않아서 저장할 때도 본다). 팝업과 첫 사용 안내가 쓴다.
 - `components/Switch.tsx` 켜고 끄는 설정 한 줄. `role="switch"`인 체크박스를 CSS로 그린다. 제목과 설명은 `aria-labelledby`·`aria-describedby`로 잇는다. `disabled`면 자리는 그대로 두고 흐리게 보인다. `hideText`면 스위치만 보이고 제목과 설명은 `.sr-only`로 화면 읽기 프로그램만 읽으며, 제목을 `title`로도 단다. 팝업과 첫 사용 안내가 쓴다.
 - `components/Logo.tsx` 팝업과 차단 목록 페이지 맨 위의 로고. 툴바 아이콘과 같은 그림이고 글자색을 따라간다.
 - `assets/icon/` 툴바 아이콘의 SVG 원본. `icon-16.svg`는 16px용, `icon.svg`는 그 밖의 크기용이다. `public/icon/`의 PNG는 이것을 헤드리스 크롬으로 그린 것이다.
