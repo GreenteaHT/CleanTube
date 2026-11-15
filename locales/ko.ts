@@ -121,9 +121,6 @@ export const ko = {
     exampleLabel: '예시 댓글',
     reply: '답글',
   },
-  badge: {
-    off: '꺼짐',
-  },
   youtube: {
     menuLabel: 'CleanTube 메뉴',
     unknownAuthor: '작성자를 못 읽음',

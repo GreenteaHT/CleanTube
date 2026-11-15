@@ -116,9 +116,6 @@ export const zhCN = {
     exampleLabel: '示例评论',
     reply: '回复',
   },
-  badge: {
-    off: '关闭',
-  },
   youtube: {
     menuLabel: 'CleanTube 菜单',
     unknownAuthor: '无法读取作者',

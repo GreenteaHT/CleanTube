@@ -119,9 +119,6 @@ export const ja = {
     exampleLabel: 'コメントの例',
     reply: '返信',
   },
-  badge: {
-    off: 'オフ',
-  },
   youtube: {
     menuLabel: 'CleanTubeメニュー',
     unknownAuthor: '投稿者を読み取れない',

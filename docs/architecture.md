@@ -12,7 +12,7 @@ popup (React)    options (React)     댓글 메뉴, 디버그 패널 (유튜브 
     v                v                   v
 chrome.storage.local "local:blocked"   차단 목록 (BlockEntry[])        <-- background.ts가 다른 PC와 맞춤
                      "local:blockedRemoved"  뺀 항목과 뺀 시각                 sync "blocked.00"~"blocked.31"
-chrome.storage.sync  "sync:settings"   설정 (차단 기능 켜기/끄기, 임시 차단 기간, 표시 방법, 디버그 패널)  <-- background.ts가 꺼짐 배지
+chrome.storage.sync  "sync:settings"   설정 (차단 기능 켜기/끄기, 임시 차단 기간, 표시 방법, 디버그 패널)  <-- background.ts가 꺼짐 아이콘
     |  watchBlocked(), watchSettings()   팝업, 차단 목록 페이지, 콘텐츠 스크립트가 각자 구독
     v
 entrypoints/youtube.content/index.ts              (격리 세계)
@@ -32,7 +32,7 @@ entrypoints/youtube.content/index.ts              (격리 세계)
   문구로 바꾸기       data-cleantube-cover="placeholder"   + "차단된 댓글"과 "숨긴 항목 보기" 가림막
 ```
 
-팝업, 차단 목록 페이지, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 처음 설치할 때 첫 사용 안내 탭을 여는 것, 업데이트 뒤 열려 있는 유튜브 탭에 새 콘텐츠 스크립트를 넣는 것, 차단 목록을 다른 PC와 맞추는 것, 차단 기능이 꺼져 있으면 툴바 아이콘에 배지를 붙이는 것만 한다. 다른 곳은 백그라운드가 있는지 모른다. 백그라운드가 맞춰 넣은 것도 `local:blocked`의 변경으로 똑같이 받는다.
+팝업, 차단 목록 페이지, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 처음 설치할 때 첫 사용 안내 탭을 여는 것, 업데이트 뒤 열려 있는 유튜브 탭에 새 콘텐츠 스크립트를 넣는 것, 차단 목록을 다른 PC와 맞추는 것, 차단 기능이 꺼져 있으면 툴바 아이콘을 회색으로 바꾸는 것만 한다. 다른 곳은 백그라운드가 있는지 모른다. 백그라운드가 맞춰 넣은 것도 `local:blocked`의 변경으로 똑같이 받는다.
 
 storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖으로 내보내지 않는다. 읽기, 쓰기, 구독은 그 두 파일이 내보내는 함수로만 한다. 병합 규칙과 쓰기 규칙이 한 곳에 있게 하려는 것이다.
 
@@ -50,7 +50,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 | `popup/` | action.default_popup | 차단 기능 스위치, 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정, 답글 범위와 디버그 패널 스위치 |
 | `options/` | options_ui (`open_in_tab`) | 설정 페이지. 차단 목록(보기와 편집)과 언어 두 탭. 브라우저 탭 하나로 열린다 |
 | `onboarding/` | (manifest에 없음, `onboarding.html`) | 첫 사용 안내. 처음 설치하면 백그라운드가 탭으로 연다 |
-| `background.ts` | background (`service_worker`) | 처음 설치하면(`runtime.onInstalled`, `reason === 'install'`) 첫 사용 안내 탭을 연다. 업데이트되면 열려 있는 유튜브 탭에 새 콘텐츠 스크립트를 넣는다. 아래 "업데이트 뒤 다시 넣기". 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화". 차단 기능이 꺼져 있으면 툴바 아이콘에 배지를 붙인다. 아래 "꺼짐 배지" |
+| `background.ts` | background (`service_worker`) | 처음 설치하면(`runtime.onInstalled`, `reason === 'install'`) 첫 사용 안내 탭을 연다. 업데이트되면 열려 있는 유튜브 탭에 새 콘텐츠 스크립트를 넣는다. 아래 "업데이트 뒤 다시 넣기". 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화". 차단 기능이 꺼져 있으면 툴바 아이콘을 회색으로 바꾼다. 아래 "꺼짐 아이콘" |
 
 ## 저장
 
@@ -123,7 +123,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
 
 | 필드 | 타입 | 의미 |
 |---|---|---|
-| `enabled` | boolean | 차단 기능 전체. 기본 켜짐. 끄면 유튜브 화면에서 아무것도 가리지 않고 댓글 메뉴 버튼도 떼며, 툴바 아이콘에 배지가 붙는다. 차단 목록은 그대로다 |
+| `enabled` | boolean | 차단 기능 전체. 기본 켜짐. 끄면 유튜브 화면에서 아무것도 가리지 않고 댓글 메뉴 버튼도 떼며, 툴바 아이콘이 회색이 된다. 차단 목록은 그대로다 |
 | `temporaryDurationMs` | number | 댓글 메뉴의 "임시 차단"이 차단하는 기간(ms). 기본 7일. 바꿔도 이미 걸어 둔 임시 차단은 그대로다 |
 | `display.permanent` | `'hide' \| 'blur' \| 'placeholder'` | 영구 차단된 댓글의 표시 방법. 기본 `hide` |
 | `display.temporary` | 같음 | 임시 차단된 댓글의 표시 방법. 기본 `blur` |
@@ -154,14 +154,14 @@ chrome.storage.sync blocked.00 ~ blocked.31
 - 이 때문에 manifest에 `scripting` 권한과 유튜브 호스트 권한(`host_permissions`)이 있다(`wxt.config.ts`). 호스트는 콘텐츠 스크립트의 `matches`와 같다.
 - 설치할 때(`install`)는 넣지 않는다. 설치 전에 열어 둔 유튜브 탭은 새로 고쳐야 동작한다.
 
-### 꺼짐 배지: `entrypoints/background.ts`
+### 꺼짐 아이콘: `entrypoints/background.ts`
 
-차단 기능(`enabled`)이 꺼져 있으면 툴바 아이콘에 배지를 붙인다. 꺼 둔 것을 잊으면 확장이 고장 난 것처럼 보여서다.
+차단 기능(`enabled`)이 꺼져 있으면 툴바 아이콘을 회색으로 바꾼다. 꺼 둔 것을 잊으면 확장이 고장 난 것처럼 보여서다.
 
-- 백그라운드가 켜질 때 `loadSettings()`로 한 번 맞추고, `watchSettings()`로 구독해 바뀔 때마다 맞춘다. 켜져 있으면 배지 글을 비운다.
-- 배지 글은 화면 언어를 따른다(`locales/`의 `badge.off`, "꺼짐", "Off"). 언어를 바꿔도 다시 맞춘다. 배지에는 네 글자쯤만 들어간다.
-- 색은 회색 바탕(`#5c5c5c`, `base.css`의 밝은 테마 `--muted`와 같은 값)에 흰 글자. 배지는 CSS 변수를 못 쓴다.
-- `runtime.onStartup`에 빈 리스너를 단다. 브라우저를 켤 때도 워커가 돌아 배지를 맞추게 하려는 것이다. 꺼 둔 채로 크롬을 다시 켜도 배지가 붙어 있는 것은 사용자가 자기 크롬에서 확인했다(2026-11-15). 헤드리스로는 CDP로 올린 확장이 재시작 뒤 남지 않아 볼 수 없었다.
+- 백그라운드가 켜질 때 `loadSettings()`로 한 번 맞추고, `watchSettings()`로 구독해 바뀔 때마다 맞춘다. `action.setIcon`으로 꺼져 있으면 `icon/off-16.png`·`off-32.png`, 켜져 있으면 manifest와 같은 `icon/16.png`·`32.png`.
+- 꺼짐 아이콘은 켜짐과 같은 그림에 바탕만 회색(`#8a8a8a`)이다. 원본은 `assets/icon/icon-off.svg`(32px)와 `icon-off-16.svg`. 툴바에는 16·32px만 쓰여서 그 둘만 둔다.
+- WXT는 `public/icon/숫자.png`만 manifest 아이콘으로 잡으므로 `off-*.png`는 섞이지 않는다.
+- `runtime.onStartup`에 빈 리스너를 단다. 브라우저를 켤 때도 워커가 돌아 아이콘을 맞추게 하려는 것이다. 헤드리스로는 CDP로 올린 확장이 재시작 뒤 남지 않아 볼 수 없었다.
 
 ### 언어: `utils/i18n.ts`, `locales/`
 

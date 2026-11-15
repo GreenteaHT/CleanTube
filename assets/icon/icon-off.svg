@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- 차단 기능을 꺼 두었을 때의 툴바 아이콘 원본(32px). icon.svg와 그림은 같고 바탕만 회색이다. 회색은 밝은 툴바와 어두운 툴바 어느 쪽에서도 네모가 보이는 중간 밝기 -->
+  <rect width="32" height="32" rx="6" fill="#8a8a8a"/>
+  <path d="M7 8h18v14H16l-5 4v-4H7z" fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="miter"/>
+  <rect x="11" y="13" width="10" height="4" fill="#ffffff"/>
+</svg>

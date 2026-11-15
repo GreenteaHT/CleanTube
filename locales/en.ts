@@ -141,10 +141,6 @@ export const en = {
     exampleLabel: 'Example comments',
     reply: 'Reply',
   },
-  /** 차단 기능을 꺼 두면 툴바 아이콘에 붙는 배지. 네 글자쯤만 들어간다 */
-  badge: {
-    off: 'Off',
-  },
   youtube: {
     menuLabel: 'CleanTube menu',
     unknownAuthor: "Couldn't read the author",

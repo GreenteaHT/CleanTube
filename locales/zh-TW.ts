@@ -116,9 +116,6 @@ export const zhTW = {
     exampleLabel: '範例留言',
     reply: '回覆',
   },
-  badge: {
-    off: '關閉',
-  },
   youtube: {
     menuLabel: 'CleanTube 選單',
     unknownAuthor: '無法讀取作者',
