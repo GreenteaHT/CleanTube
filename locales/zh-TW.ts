@@ -40,6 +40,8 @@ export const zhTW = {
     coverRepliesHint: '模糊和替換為文字時也套用到回覆。完全隱藏一律包含回覆',
     debugPanel: '偵錯面板',
     debugPanelHint: '在 YouTube 畫面右側顯示讀取到的留言清單',
+    enabled: '封鎖功能',
+    enabledHint: '關閉後已封鎖的留言照常顯示。留言上也沒有 CleanTube 按鈕',
     previewHide: '原位置不留任何內容',
     previewBlur: '模糊留言範例',
   },
@@ -112,6 +114,9 @@ export const zhTW = {
     example: '範例',
     exampleLabel: '範例留言',
     reply: '回覆',
+  },
+  badge: {
+    off: '關閉',
   },
   youtube: {
     menuLabel: 'CleanTube 選單',

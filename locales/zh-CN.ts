@@ -40,6 +40,8 @@ export const zhCN = {
     coverRepliesHint: '模糊和替换为文字时也作用于回复。完全隐藏始终包含回复',
     debugPanel: '调试面板',
     debugPanelHint: '在 YouTube 页面右侧显示读取到的评论列表',
+    enabled: '屏蔽功能',
+    enabledHint: '关闭后已屏蔽的评论照常显示。评论上也没有 CleanTube 按钮',
     previewHide: '原位置不留任何内容',
     previewBlur: '模糊评论示例',
   },
@@ -112,6 +114,9 @@ export const zhCN = {
     example: '示例',
     exampleLabel: '示例评论',
     reply: '回复',
+  },
+  badge: {
+    off: '关闭',
   },
   youtube: {
     menuLabel: 'CleanTube 菜单',

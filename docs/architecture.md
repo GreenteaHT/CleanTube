@@ -12,7 +12,7 @@ popup (React)    options (React)     댓글 메뉴, 디버그 패널 (유튜브 
     v                v                   v
 chrome.storage.local "local:blocked"   차단 목록 (BlockEntry[])        <-- background.ts가 다른 PC와 맞춤
                      "local:blockedRemoved"  뺀 항목과 뺀 시각                 sync "blocked.00"~"blocked.31"
-chrome.storage.sync  "sync:settings"   설정 (임시 차단 기간, 표시 방법, 디버그 패널)
+chrome.storage.sync  "sync:settings"   설정 (차단 기능 켜기/끄기, 임시 차단 기간, 표시 방법, 디버그 패널)  <-- background.ts가 꺼짐 배지
     |  watchBlocked(), watchSettings()   팝업, 차단 목록 페이지, 콘텐츠 스크립트가 각자 구독
     v
 entrypoints/youtube.content/index.ts              (격리 세계)
@@ -23,8 +23,8 @@ entrypoints/youtube.content/index.ts              (격리 세계)
     |       -> entrypoints/youtube-main.content.ts  (페이지 세계)
     |          댓글 요소에 data-cleantube-channel-id="UC…" 속성
     |  2. 댓글마다 핸들과 채널 ID를 읽어 차단 목록과 비교 (만료된 임시 차단은 건너뜀)
-    |  3. 걸린 항목이 영구냐 임시냐에 따라 설정에서 표시 방법을 고름
-    |  4. 댓글에 메뉴 버튼 붙이기, 읽은 값과 결과를 디버그 패널에 그림 (켜져 있을 때)
+    |  3. 걸린 항목이 영구냐 임시냐에 따라 설정에서 표시 방법을 고름 (차단 기능을 꺼 두면 가리지 않음)
+    |  4. 댓글에 메뉴 버튼 붙이기 (꺼 두면 떼기), 읽은 값과 결과를 디버그 패널에 그림 (패널이 켜져 있을 때)
     v
 표시 방법에 따라 속성을 붙이고 style.css가 처리
   완전히 숨기기       data-cleantube-blocked="<항목 키>"   (답글은 그 답글, 최상위 댓글은 스레드 전체)
@@ -32,7 +32,7 @@ entrypoints/youtube.content/index.ts              (격리 세계)
   문구로 바꾸기       data-cleantube-cover="placeholder"   + "차단된 댓글"과 "숨긴 항목 보기" 가림막
 ```
 
-팝업, 차단 목록 페이지, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 처음 설치할 때 첫 사용 안내 탭을 여는 것과 차단 목록을 다른 PC와 맞추는 일만 한다. 다른 곳은 백그라운드가 있는지 모른다. 백그라운드가 맞춰 넣은 것도 `local:blocked`의 변경으로 똑같이 받는다.
+팝업, 차단 목록 페이지, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 처음 설치할 때 첫 사용 안내 탭을 여는 것, 차단 목록을 다른 PC와 맞추는 것, 차단 기능이 꺼져 있으면 툴바 아이콘에 배지를 붙이는 것만 한다. 다른 곳은 백그라운드가 있는지 모른다. 백그라운드가 맞춰 넣은 것도 `local:blocked`의 변경으로 똑같이 받는다.
 
 storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖으로 내보내지 않는다. 읽기, 쓰기, 구독은 그 두 파일이 내보내는 함수로만 한다. 병합 규칙과 쓰기 규칙이 한 곳에 있게 하려는 것이다.
 
@@ -47,10 +47,10 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 | `youtube.content/source.ts` | (index.ts에 번들됨) | 차단할 때 그 댓글의 주소, 영상 제목, 내용을 읽는다 |
 | `youtube.content/panel.ts` + `panel.css` | (index.ts에 번들됨) | 디버그 패널. `panel.css`는 `?inline`으로 문자열로 가져와 Shadow DOM 안에만 넣는다 |
 | `youtube-main.content.ts` | content_scripts (`world: MAIN`, `document_start`) | 요청을 받으면 댓글 요소에 채널 ID를 속성으로 적는다 |
-| `popup/` | action.default_popup | 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정, 답글 범위와 디버그 패널 스위치 |
+| `popup/` | action.default_popup | 차단 기능 스위치, 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정, 답글 범위와 디버그 패널 스위치 |
 | `options/` | options_ui (`open_in_tab`) | 설정 페이지. 차단 목록(보기와 편집)과 언어 두 탭. 브라우저 탭 하나로 열린다 |
 | `onboarding/` | (manifest에 없음, `onboarding.html`) | 첫 사용 안내. 처음 설치하면 백그라운드가 탭으로 연다 |
-| `background.ts` | background (`service_worker`) | 처음 설치하면(`runtime.onInstalled`, `reason === 'install'`) 첫 사용 안내 탭을 연다. 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화" |
+| `background.ts` | background (`service_worker`) | 처음 설치하면(`runtime.onInstalled`, `reason === 'install'`) 첫 사용 안내 탭을 연다. 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화". 차단 기능이 꺼져 있으면 툴바 아이콘에 배지를 붙인다. 아래 "꺼짐 배지" |
 
 ## 저장
 
@@ -122,6 +122,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
 
 | 필드 | 타입 | 의미 |
 |---|---|---|
+| `enabled` | boolean | 차단 기능 전체. 기본 켜짐. 끄면 유튜브 화면에서 아무것도 가리지 않고 댓글 메뉴 버튼도 떼며, 툴바 아이콘에 배지가 붙는다. 차단 목록은 그대로다 |
 | `temporaryDurationMs` | number | 댓글 메뉴의 "임시 차단"이 차단하는 기간(ms). 기본 7일. 바꿔도 이미 걸어 둔 임시 차단은 그대로다 |
 | `display.permanent` | `'hide' \| 'blur' \| 'placeholder'` | 영구 차단된 댓글의 표시 방법. 기본 `hide` |
 | `display.temporary` | 같음 | 임시 차단된 댓글의 표시 방법. 기본 `blur` |
@@ -135,6 +136,17 @@ chrome.storage.sync blocked.00 ~ blocked.31
 - `updateSettings(patch)` 최신 값을 다시 읽어 병합한 뒤 저장하고, 병합한 결과를 돌려준다. 다른 창에서 바꾼 값을 덮어쓰지 않기 위해서다. `display`는 한쪽만 넘겨도 된다(`SettingsPatch`).
 
 `fallback`은 값이 통째로 없을 때만 쓰인다. 전에 저장된 객체에는 나중에 추가한 필드가 빠져 있으므로, 읽고 구독하는 함수가 `DEFAULT_SETTINGS` 위에 덮어 쓴다. `display`는 안쪽 객체라 한 겹 더 덮어 쓴다.
+
+`enabled`도 `sync:settings` 안이라 한 PC에서 끄면 같은 계정의 다른 PC도 꺼진다.
+
+### 꺼짐 배지: `entrypoints/background.ts`
+
+차단 기능(`enabled`)이 꺼져 있으면 툴바 아이콘에 배지를 붙인다. 꺼 둔 것을 잊으면 확장이 고장 난 것처럼 보여서다.
+
+- 백그라운드가 켜질 때 `loadSettings()`로 한 번 맞추고, `watchSettings()`로 구독해 바뀔 때마다 맞춘다. 켜져 있으면 배지 글을 비운다.
+- 배지 글은 화면 언어를 따른다(`locales/`의 `badge.off`, "꺼짐", "Off"). 언어를 바꿔도 다시 맞춘다. 배지에는 네 글자쯤만 들어간다.
+- 색은 회색 바탕(`#5c5c5c`, `base.css`의 밝은 테마 `--muted`와 같은 값)에 흰 글자. 배지는 CSS 변수를 못 쓴다.
+- `runtime.onStartup`에 빈 리스너를 단다. 브라우저를 켤 때도 워커가 돌아 배지를 맞추게 하려는 것이다. 배지가 브라우저를 다시 켠 뒤에도 남는지는 확인하지 못했다(헤드리스 확인에서 CDP로 올린 확장이 재시작 뒤 남지 않았다).
 
 ### 언어: `utils/i18n.ts`, `locales/`
 
@@ -161,10 +173,12 @@ chrome.storage.sync blocked.00 ~ blocked.31
    - 전체 스캔은 150ms에 한 번으로 묶는다. 새로 붙은 댓글은 위에서 바로 처리하므로 이 스캔은 안전망이다. 실측에서 간격은 비용을 바꾸지 않았다 ([decisions.md](decisions.md) "스캔 스케줄링 실측").
    - 우리 요소(메뉴 버튼, 가림막, 메뉴와 패널의 Shadow DOM 호스트)를 넣거나 뺀 것뿐이거나 그 안에서 일어난 변경이면 스캔을 걸지 않는다. 스캔이 버튼과 가림막을 넣는 것도 DOM 변경이라, 거르지 않으면 스캔이 스캔을 부른다.
 2. `watchBlocked()`. 차단 목록 페이지, 패널, 메뉴 어디서 차단 목록을 바꾸든 즉시 다시 스캔한다. 사용자가 누른 변경이라 애니메이션을 켠다.
-3. `watchSettings()`. 표시 방법이 바뀌었을 수 있으니 다시 스캔한다. 언어도 다시 고르고, 바뀌었으면 패널을 다시 그린다.
+3. `watchSettings()`. 차단 기능을 켜고 껐거나 표시 방법이 바뀌었을 수 있으니 다시 스캔한다(사용자가 바꾼 것이라 애니메이션을 켠다). 언어도 다시 고르고, 바뀌었으면 패널을 다시 그린다.
 4. 만료 타이머. 가장 먼저 풀리는 임시 차단 시각에 맞춰 다시 스캔한다. 스캔은 DOM이 바뀔 때만 돌아서, 타이머가 없으면 기간이 끝나도 화면이 바뀔 때까지 가려져 있다. `setTimeout`의 최대 지연(약 24.8일)을 넘는 기간은 그만큼씩 끊어서 다시 건다.
 
 `applyAll()`은 먼저 페이지 세계에 채널 ID를 적어 달라고 요청한다. 그다음 모든 댓글 요소를 돌면서 `applyOne()`을 부른다. `applyOne()`은 작성자를 읽어 `findBlock()`에 넘기고, 걸린 항목이 영구냐 임시냐에 따라 설정에서 표시 방법을 골라 `applyDisplay()`에 넘기고, 메뉴 버튼이 없으면 붙인다. 읽은 값과 결과는 줄 목록으로 모아 패널에 넘긴다.
+
+차단 기능(`enabled`)을 꺼 두면 `applyOne()`은 걸린 항목이 있어도 `applyDisplay()`에 null을 넘겨 가림을 풀고, 메뉴 버튼을 붙이는 대신 뗀다(`menu.detach()`). 스캔은 그대로 돌아서 꺼진 동안 새로 붙은 댓글에서도 떼고, 다시 켜면 다음 스캔에서 가리고 붙인다. 매칭도 그대로 해서 디버그 패널은 꺼져 있을 때도 어느 댓글이 걸리는지 보여 준다. 패널은 자기 설정(`debugPanel`)만 따르고, 차단/해제 버튼도 그대로 목록에 쓴다(화면은 다시 켤 때 바뀐다). "숨긴 항목 보기"로 열어 둔 것은 껐다 켜면 다시 가려진다. 끌 때 가림막과 함께 치우기 때문이다.
 
 ### 표시 방법: `youtube.content/display.ts`
 
@@ -203,6 +217,7 @@ chrome.storage.sync blocked.00 ~ blocked.31
 - 글자와 동작은 메뉴를 열 때 한 쌍으로 정해진다. 열려 있는 사이에 목록이나 설정이 바뀌어도 적힌 대로 동작한다.
 - 임시 차단의 기간은 메뉴에서 고르지 않고 팝업 설정(`temporaryDurationMs`)에서 정한다. 얼마 동안인지 누르기 전에 알 수 있게 항목 글자에 적는다.
 - 차단된 댓글의 메뉴는 그 댓글이 보여야 열 수 있다. 완전히 숨긴 댓글은 열 수 없어서 패널이나 차단 목록 페이지에서 푼다. 흐리게나 "차단된 댓글"로 바꾼 댓글은 "숨긴 항목 보기"를 누른 뒤에 연다.
+- 차단 기능을 끄면 `detach(comment)`가 버튼을 뗀다. 그 버튼으로 메뉴가 열려 있었으면 닫는다.
 - 유튜브의 ⋮ 메뉴는 건드리지 않는다. 이유는 decisions.md.
 
 ### 차단한 경위: `youtube.content/source.ts`
@@ -278,7 +293,8 @@ chrome.storage.sync blocked.00 ~ blocked.31
 
 - `hooks/useSettings.ts` `loadSettings()`로 초기값을 읽고 `watchSettings()`로 구독한다. `update(patch)`는 `updateSettings()`를 부르고 그 결과로 바로 그린다.
 - `hooks/useBlocked.ts` `loadBlocked()`로 읽고 `watchBlocked()`로 구독한다. 쓰기는 `blocklist.ts`의 `addBlock`/`removeBlock`을 그대로 내보낸다. 팝업은 읽기만 하고 차단 목록 페이지가 읽고 쓴다.
-- `entrypoints/popup/App.tsx` 차단한 수와 "차단 목록 관리" 버튼, 영구 차단 설정(표시 방법), 임시 차단 설정(기간, 표시 방법), 답글도 함께 가리기와 디버그 패널 스위치. 폭 360px이고 높이는 크롬 팝업 한도인 600px 안에 들어가게 잡았다.
+- `entrypoints/popup/App.tsx` 맨 위 줄의 차단 기능 스위치, 차단한 수와 "차단 목록 관리" 버튼, 영구 차단 설정(표시 방법), 임시 차단 설정(기간, 표시 방법), 답글도 함께 가리기와 디버그 패널 스위치. 폭 360px이고 높이는 크롬 팝업 한도인 600px 안에 들어가게 잡았다.
+  - 차단 기능 스위치는 맨 위 줄 오른쪽 끝, "설정" 옆에 스위치만 있다(`Switch`의 `hideText`). 이름과 설명은 화면 읽기 프로그램이 읽고, 이름은 마우스를 올리면 나온다. 꺼도 아래 설정은 그대로 바꿀 수 있다.
   - 표시 방법은 세 칸 버튼(`Segmented`)으로 고르고, 그 아래에 고른 방법으로 댓글이 어떻게 보이는지 한 줄 미리보기(`ModePreview`)가 있다. 미리보기는 `aria-hidden`이다.
   - 기간은 1일·7일·30일·직접 네 칸이고 ms 하나로 저장한다. 직접을 고르면 "기간" 줄 오른쪽에 숫자와 시간/일이 나온다. 직접을 고르기만 해서는 저장하지 않는다.
   - 스위치는 `role="switch"`인 체크박스를 CSS로 그린다. 줄 어디를 눌러도 바뀐다.
@@ -319,6 +335,6 @@ chrome.storage.sync blocked.00 ~ blocked.31
 - `components/displayModes.ts` 표시 방법의 선택지와 이름(`displayModeOptions(t)`, `displayModeLabel(mode, t)`), 언어 선택지(`languageOptions(t, browserLocale)`). 팝업, 설정, 첫 사용 안내가 쓴다.
 - `hooks/useI18n.tsx` `I18nProvider`와 `useI18n()`. 위 "언어".
 - `components/DurationField.tsx` 임시 차단 기간. 1일·7일·30일·직접 네 칸이고 ms 하나로 저장한다. 직접을 고르면 "기간" 줄 오른쪽에 숫자와 시간/일이 나오고, 고르기만 해서는 저장하지 않는다. 팝업과 첫 사용 안내가 쓴다.
-- `components/Switch.tsx` 켜고 끄는 설정 한 줄. `role="switch"`인 체크박스를 CSS로 그린다. 제목과 설명은 `aria-labelledby`·`aria-describedby`로 잇는다. `disabled`면 자리는 그대로 두고 흐리게 보인다. 팝업과 첫 사용 안내가 쓴다.
+- `components/Switch.tsx` 켜고 끄는 설정 한 줄. `role="switch"`인 체크박스를 CSS로 그린다. 제목과 설명은 `aria-labelledby`·`aria-describedby`로 잇는다. `disabled`면 자리는 그대로 두고 흐리게 보인다. `hideText`면 스위치만 보이고 제목과 설명은 `.sr-only`로 화면 읽기 프로그램만 읽으며, 제목을 `title`로도 단다. 팝업과 첫 사용 안내가 쓴다.
 - `components/Logo.tsx` 팝업과 차단 목록 페이지 맨 위의 로고. 툴바 아이콘과 같은 그림이고 글자색을 따라간다.
 - `assets/icon/` 툴바 아이콘의 SVG 원본. `icon-16.svg`는 16px용, `icon.svg`는 그 밖의 크기용이다. `public/icon/`의 PNG는 이것을 헤드리스 크롬으로 그린 것이다.

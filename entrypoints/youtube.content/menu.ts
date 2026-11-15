@@ -20,6 +20,8 @@ export interface MenuText {
 export interface CommentMenu {
   /** 댓글에 메뉴 버튼이 없으면 붙인다. 유튜브가 댓글을 다시 그리면 버튼이 사라질 수 있어서 스캔할 때마다 부른다. */
   attach(comment: HTMLElement): void;
+  /** 댓글에서 메뉴 버튼을 뗀다. 그 버튼으로 메뉴가 열려 있으면 닫는다. 차단 기능을 끄면 스캔할 때마다 부른다. */
+  detach(comment: HTMLElement): void;
   remove(): void;
 }
 
@@ -101,6 +103,13 @@ export async function createCommentMenu(
       }
       // 유튜브 ⋮의 왼쪽에 둔다. 나란히 놓는 배치는 style.css.
       slot.prepend(createTrigger(comment));
+    },
+    detach(comment) {
+      // attach가 있는지 보는 것과 같은 방법으로 찾는다. 다르면 attach는 있다고 보는데 여기서는 못 찾을 수 있다
+      const trigger = comment.querySelector(SLOT_SELECTOR)?.querySelector(`[${TRIGGER_ATTR}]`);
+      if (!trigger) return;
+      if (trigger === openTrigger) close();
+      trigger.remove();
     },
     remove: ui.remove,
   };

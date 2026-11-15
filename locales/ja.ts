@@ -40,6 +40,8 @@ export const ja = {
     coverRepliesHint: 'ぼかす・テキストに置換でも返信まで適用。完全に非表示は常に返信を含む',
     debugPanel: 'デバッグパネル',
     debugPanelHint: 'YouTube画面の右に読み取ったコメント一覧を表示',
+    enabled: 'ブロック機能',
+    enabledHint: 'オフにするとブロックしたコメントもそのまま表示。コメントのCleanTubeボタンもなし',
     previewHide: 'この場所には何も残らない',
     previewBlur: 'ぼかしたコメントの例',
   },
@@ -115,6 +117,9 @@ export const ja = {
     example: '例',
     exampleLabel: 'コメントの例',
     reply: '返信',
+  },
+  badge: {
+    off: 'オフ',
   },
   youtube: {
     menuLabel: 'CleanTubeメニュー',

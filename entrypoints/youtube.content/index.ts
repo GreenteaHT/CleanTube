@@ -79,7 +79,7 @@ export default defineContentScript({
         settings = next;
         locale = resolveLocale(settings.language, uiLanguage);
         t = messagesFor(locale);
-        // 표시 방법이 바뀌었을 수 있다. 언어가 바뀌었으면 이미 붙은 가림막과 메뉴 버튼의 글도 여기서 바뀐다
+        // 차단 기능을 켜고 껐거나 표시 방법이 바뀌었을 수 있다. 언어가 바뀌었으면 이미 붙은 가림막과 메뉴 버튼의 글도 여기서 바뀐다
         applyAll(true);
         if (languageChanged) panel?.redraw();
         void syncPanel();
@@ -100,15 +100,20 @@ export default defineContentScript({
       panel?.render(rows);
     }
 
+    // 차단 기능을 꺼 두어도 매칭은 한다. 디버그 패널은 꺼져 있을 때도 어느 댓글이 걸리는지 보여 준다.
     function applyOne(el: HTMLElement, now: number, animate: boolean): PanelRow {
       const author = readAuthor(el);
       const hit = findBlock(author, blocked, now);
-      const display = hit && {
-        key: entryKey(hit),
-        mode: hit.until === undefined ? settings.display.permanent : settings.display.temporary,
-      };
+      const display =
+        settings.enabled && hit
+          ? {
+              key: entryKey(hit),
+              mode: hit.until === undefined ? settings.display.permanent : settings.display.temporary,
+            }
+          : null;
       applyDisplay(el, display, { coverReplies: settings.coverReplies, animate, text: t.overlay, lang: locale });
-      menu.attach(el);
+      if (settings.enabled) menu.attach(el);
+      else menu.detach(el);
       return { author, hit, comment: el };
     }
 

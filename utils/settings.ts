@@ -12,6 +12,11 @@ export type DisplayMode = 'hide' | 'blur' | 'placeholder';
 
 /** 차단 목록은 여기 없다. 커질 수 있어서 utils/blocklist.ts가 storage.local에 따로 둔다. */
 export interface Settings {
+  /**
+   * 차단 기능 전체. 끄면 유튜브 화면에서 아무것도 가리지 않고 댓글 메뉴 버튼도 붙이지 않는다.
+   * 차단 목록은 그대로 두어 다시 켜면 돌아온다. 디버그 패널은 이 값과 상관없이 debugPanel을 따른다.
+   */
+  enabled: boolean;
   /** 유튜브 화면 오른쪽에 읽은 댓글 목록과 차단 버튼을 띄운다. 채널 ID를 손으로 복사하지 않아도 되게. */
   debugPanel: boolean;
   /** 댓글 메뉴의 "임시 차단"을 눌렀을 때 차단하는 기간(ms). 이미 걸어 둔 임시 차단의 기간은 바뀌지 않는다. */
@@ -33,6 +38,7 @@ export type SettingsPatch = Partial<Omit<Settings, 'display'>> & {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
+  enabled: true,
   debugPanel: false,
   temporaryDurationMs: 7 * DAY_MS,
   display: { permanent: 'hide', temporary: 'blur' },

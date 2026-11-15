@@ -8,11 +8,13 @@ export default function Switch(props: {
   onChange: (checked: boolean) => void;
   /** 지금은 바꿀 수 없을 때. 자리는 그대로 두고 흐리게 보인다. */
   disabled?: boolean;
+  /** 스위치만 보이고 제목과 설명은 화면 읽기 프로그램만 읽는다. 제목은 마우스를 올리면 나온다. 팝업 맨 위 줄처럼 자리가 좁을 때. */
+  hideText?: boolean;
 }) {
   const id = useId();
   return (
-    <label className="switch">
-      <span className="switch-text">
+    <label className="switch" title={props.hideText ? props.label : undefined}>
+      <span className={props.hideText ? 'sr-only' : 'switch-text'}>
         <span id={`${id}-label`} className="switch-label">
           {props.label}
         </span>

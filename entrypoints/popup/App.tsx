@@ -14,7 +14,7 @@ import { openSettings } from './openSettings';
 import './App.css';
 
 /**
- * 툴바 아이콘을 눌렀을 때 뜨는 팝업. 차단한 수, 영구/임시 차단 설정, 답글 범위, 디버그 패널 토글.
+ * 툴바 아이콘을 눌렀을 때 뜨는 팝업. 맨 위 줄의 차단 기능 스위치, 차단한 수, 영구/임시 차단 설정, 답글 범위, 디버그 패널 토글.
  * 차단 목록과 언어는 여기 없고 설정 페이지(entrypoints/options)의 두 탭에 있다. 팝업에는 그 탭을 여는 버튼만 둔다.
  * "차단 목록 관리"는 차단 목록 탭, 맨 위 줄의 "설정"은 언어 탭을 연다. 진입로가 차단 목록 하나뿐이면 다른 설정을 찾을 길이 없어서.
  */
@@ -51,6 +51,13 @@ export default function App() {
           </svg>
           {t.settings.title}
         </button>
+        <Switch
+          label={t.popup.enabled}
+          description={t.popup.enabledHint}
+          checked={settings.enabled}
+          onChange={(enabled) => update({ enabled })}
+          hideText
+        />
       </header>
 
       <section className="total">

@@ -15,7 +15,7 @@
   margin: 0;
 }
 
-/* 맨 위 줄: 로고와 이름 */
+/* 맨 위 줄: 로고와 이름, 오른쪽에 "설정"과 차단 기능 스위치 */
 .popup .bar {
   display: flex;
   align-items: center;
@@ -133,6 +133,6 @@
   white-space: nowrap;
 }
 
-.popup .switch {
+.popup .switches .switch {
   padding: 7px 16px;
 }

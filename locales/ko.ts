@@ -42,6 +42,8 @@ export const ko = {
     coverRepliesHint: '흐리게·문구로 바꾸기에서도 답글까지 적용. 완전히 숨기기는 늘 답글 포함',
     debugPanel: '디버그 패널',
     debugPanelHint: '유튜브 화면 오른쪽에 읽은 댓글 목록 표시',
+    enabled: '차단 기능',
+    enabledHint: '끄면 차단한 댓글도 그대로 보임. 댓글의 CleanTube 버튼도 없음',
     previewHide: '이 자리에 아무것도 안 남음',
     previewBlur: '흐리게 가린 댓글 예시',
   },
@@ -117,6 +119,9 @@ export const ko = {
     example: '예시',
     exampleLabel: '예시 댓글',
     reply: '답글',
+  },
+  badge: {
+    off: '꺼짐',
   },
   youtube: {
     menuLabel: 'CleanTube 메뉴',

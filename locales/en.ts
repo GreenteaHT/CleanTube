@@ -55,6 +55,9 @@ export const en = {
     coverRepliesHint: 'Applies to blur and replace with text · Hide completely always includes replies',
     debugPanel: 'Debug panel',
     debugPanelHint: 'Shows the comments read on YouTube on the right',
+    /** 팝업 맨 위 줄의 차단 기능 스위치. 글은 화면 읽기 프로그램이 읽고, 이름은 마우스를 올리면 나온다 */
+    enabled: 'Blocking',
+    enabledHint: 'When off, blocked comments show as usual · No CleanTube button on comments',
     previewHide: 'Nothing left in its place',
     previewBlur: 'Blurred comment example',
   },
@@ -131,6 +134,10 @@ export const en = {
     example: 'Example',
     exampleLabel: 'Example comments',
     reply: 'Reply',
+  },
+  /** 차단 기능을 꺼 두면 툴바 아이콘에 붙는 배지. 네 글자쯤만 들어간다 */
+  badge: {
+    off: 'Off',
   },
   youtube: {
     menuLabel: 'CleanTube menu',
