@@ -10,6 +10,9 @@ interface CommentElement extends HTMLElement {
   commentEntity?: { author?: { channelId?: unknown } };
 }
 
+/** 이 스크립트가 시작하면서 document에 쏘는 이벤트. 먼저 들어와 있던 같은 스크립트가 듣고 물러난다. */
+const STARTED = 'cleantube:main-started';
+
 /**
  * 채널 ID는 HTML에 없고 유튜브가 댓글 요소에 달아 둔 JS 객체에만 있다.
  * 그 객체는 페이지와 같은 세계에서만 보여서 이 스크립트만 MAIN 세계에서 돈다.
@@ -22,17 +25,27 @@ export default defineContentScript({
   runAt: 'document_start',
 
   main() {
+    // 확장이 업데이트되면 백그라운드가 이 스크립트를 새로 넣는다. 먼저 있던 것은 그때 듣기를 그만둔다.
+    // 둘이 같이 들으면 옛 코드도 속성을 적는다. 페이지 세계에는 WXT의 ctx가 없어서 직접 알린다.
+    const replaced = new AbortController();
+    document.dispatchEvent(new Event(STARTED));
+    document.addEventListener(STARTED, () => replaced.abort(), { signal: replaced.signal });
+
     // 스스로 DOM을 감시하지 않고 요청받을 때만 적는다. 감시와 스캔 간격은 격리 세계 한 곳에서만 정한다.
-    document.addEventListener(CHANNEL_ID_REQUEST, () => {
-      for (const el of document.querySelectorAll<CommentElement>(COMMENT_SELECTOR)) {
-        const id = el.commentEntity?.author?.channelId;
-        if (typeof id === 'string' && id) {
-          if (el.getAttribute(CHANNEL_ID_ATTR) !== id) el.setAttribute(CHANNEL_ID_ATTR, id);
-        } else if (el.hasAttribute(CHANNEL_ID_ATTR)) {
-          // 유튜브가 요소를 다른 댓글에 재사용했는데 데이터가 아직 없으면 옛 값을 남기지 않는다.
-          el.removeAttribute(CHANNEL_ID_ATTR);
+    document.addEventListener(
+      CHANNEL_ID_REQUEST,
+      () => {
+        for (const el of document.querySelectorAll<CommentElement>(COMMENT_SELECTOR)) {
+          const id = el.commentEntity?.author?.channelId;
+          if (typeof id === 'string' && id) {
+            if (el.getAttribute(CHANNEL_ID_ATTR) !== id) el.setAttribute(CHANNEL_ID_ATTR, id);
+          } else if (el.hasAttribute(CHANNEL_ID_ATTR)) {
+            // 유튜브가 요소를 다른 댓글에 재사용했는데 데이터가 아직 없으면 옛 값을 남기지 않는다.
+            el.removeAttribute(CHANNEL_ID_ATTR);
+          }
         }
-      }
-    });
+      },
+      { signal: replaced.signal },
+    );
   },
 });

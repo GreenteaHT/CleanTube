@@ -5,7 +5,7 @@ import { messagesFor, resolveLocale, type Locale, type Messages } from '@/utils/
 import { entryKey, findBlock, type Author, type BlockEntry } from '@/utils/matcher';
 import { loadSettings, watchSettings, type Settings } from '@/utils/settings';
 import { CHANNEL_ID_ATTR, CHANNEL_ID_REQUEST, COMMENT_SELECTOR } from '@/utils/youtube';
-import { OVERLAY_ATTR, applyDisplay } from './display';
+import { OVERLAY_ATTR, applyDisplay, clearDisplay } from './display';
 import { MENU_HOST, TRIGGER_ATTR, createCommentMenu, type MenuItem } from './menu';
 import { PANEL_HOST, createPanel, type Panel, type PanelRow } from './panel';
 import { readSource } from './source';
@@ -56,6 +56,9 @@ export default defineContentScript({
     // 댓글은 스크롤해야 뒤늦게 붙기도 한다. 그래서 DOM 변경을 감시해서 그때마다 스캔한다.
     // 패널과 메뉴는 Shadow DOM 안에 그리므로 다시 그려도 이 감시에 잡히지 않는다.
     const observer = new MutationObserver((records) => {
+      // 확장이 꺼지거나 지워진 것은 아무도 알려 주지 않는다. isInvalid를 읽어야 알게 되고, 그때 아래 onInvalidated가 돈다.
+      // 끊긴 채로 계속 돌면 옛 목록으로 가리고, 떼 줄 것이 없는 가림이 남는다.
+      if (ctx.isInvalid) return;
       // 새로 붙은 댓글은 여기서 바로 처리한다. 이 콜백은 DOM이 바뀐 직후, 화면에 칠하기 전에 돌아서
       // 이미 차단된 작성자의 댓글이 한 번도 보이지 않는다. 나머지는 묶어서 스캔한다.
       const added = addedComments(records);
@@ -69,17 +72,33 @@ export default defineContentScript({
       if (records.some((record) => !isOwnChange(record))) schedule();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
-    ctx.onInvalidated(() => observer.disconnect());
+    // 확장이 꺼지거나 업데이트되면 이 스크립트는 끊겨서 저장소를 더 듣지 못한다. 붙여 둔 가림을 그대로 두면 해제해도 풀리지 않는다.
+    // 업데이트면 백그라운드가 새 스크립트를 넣고, 그것이 처음부터 다시 가린다.
+    ctx.onInvalidated(() => {
+      observer.disconnect();
+      clearDisplay();
+    });
+
+    // 구독은 이 스크립트가 끊길 때 푼다. 확장이 꺼지거나 업데이트돼서 끊긴 것이면 저장소 API가 이미 없어서 풀다가 오류가 난다.
+    // 그때는 알림도 더 오지 않으니 넘어간다.
+    const untilInvalidated = (unwatch: () => void) =>
+      ctx.onInvalidated(() => {
+        try {
+          unwatch();
+        } catch {
+          // 풀 것이 없다
+        }
+      });
 
     // 차단 목록 페이지, 패널, 메뉴 어디서 바꾸든 storage를 거쳐 여기로 온다. 사용자가 누른 변경이라 애니메이션을 켠다.
-    ctx.onInvalidated(
+    untilInvalidated(
       watchBlocked((next) => {
         blocked = next;
         applyAll(true);
         scheduleExpiry();
       }),
     );
-    ctx.onInvalidated(
+    untilInvalidated(
       watchSettings((next) => {
         const languageChanged = next.language !== settings.language;
         settings = next;

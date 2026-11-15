@@ -59,7 +59,7 @@ entrypoints/
     panel.ts/.css    디버그 패널. Shadow DOM 안에 읽은 댓글 목록과 차단/해제 버튼
   youtube-main.content.ts
                      페이지(MAIN) 세계에서 실행. 댓글 요소에 채널 ID를 속성으로 적는다.
-  background.ts      서비스 워커. 첫 사용 안내 탭 열기, 차단 목록 동기화, 꺼짐 배지
+  background.ts      서비스 워커. 첫 사용 안내 탭 열기, 업데이트 뒤 열린 탭에 스크립트 다시 넣기, 차단 목록 동기화, 꺼짐 배지
   popup/             툴바 아이콘 팝업 (React). 켜기/끄기, 차단한 수, 영구/임시 차단 설정, 디버그 패널 토글
   options/           설정 페이지 (React). 탭 하나로 열린다. "차단 목록"과 "언어" 두 탭
   onboarding/        첫 사용 안내 (React). 예시 댓글은 유튜브 쪽 display.ts와 CSS를 그대로 쓴다

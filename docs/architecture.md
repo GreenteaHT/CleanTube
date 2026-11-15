@@ -1,6 +1,6 @@
 # 구조
 
-WXT가 `entrypoints/` 폴더를 읽어 manifest를 만든다. `wxt.config.ts`에는 파일 구조로 알 수 없는 것(이름, 설명, 권한)만 적는다.
+WXT가 `entrypoints/` 폴더를 읽어 manifest를 만든다. `wxt.config.ts`에는 파일 구조로 알 수 없는 것(이름, 설명, 권한)만 적는다. 권한은 `storage`, `scripting`, 유튜브 호스트다.
 
 WXT의 auto-import는 꺼 두었다(`imports: false`). 켜 두면 `utils/`, `hooks/`, `components/`의 export가 import 없이 전역으로 보여서, storage 항목처럼 모듈 안에 둔 것을 밖에서 쓸 수 있게 된다. WXT API는 `#imports`에서 명시적으로 import한다.
 
@@ -32,7 +32,7 @@ entrypoints/youtube.content/index.ts              (격리 세계)
   문구로 바꾸기       data-cleantube-cover="placeholder"   + "차단된 댓글"과 "숨긴 항목 보기" 가림막
 ```
 
-팝업, 차단 목록 페이지, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 처음 설치할 때 첫 사용 안내 탭을 여는 것, 차단 목록을 다른 PC와 맞추는 것, 차단 기능이 꺼져 있으면 툴바 아이콘에 배지를 붙이는 것만 한다. 다른 곳은 백그라운드가 있는지 모른다. 백그라운드가 맞춰 넣은 것도 `local:blocked`의 변경으로 똑같이 받는다.
+팝업, 차단 목록 페이지, 메뉴, 패널, 콘텐츠 스크립트가 storage 항목을 공유하고, 서로 메시지를 주고받지 않는다. 메뉴와 패널의 버튼도 storage에 쓰기만 하고, 그 변경을 콘텐츠 스크립트가 구독으로 받아 화면을 갱신한다. 백그라운드 스크립트는 처음 설치할 때 첫 사용 안내 탭을 여는 것, 업데이트 뒤 열려 있는 유튜브 탭에 새 콘텐츠 스크립트를 넣는 것, 차단 목록을 다른 PC와 맞추는 것, 차단 기능이 꺼져 있으면 툴바 아이콘에 배지를 붙이는 것만 한다. 다른 곳은 백그라운드가 있는지 모른다. 백그라운드가 맞춰 넣은 것도 `local:blocked`의 변경으로 똑같이 받는다.
 
 storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖으로 내보내지 않는다. 읽기, 쓰기, 구독은 그 두 파일이 내보내는 함수로만 한다. 병합 규칙과 쓰기 규칙이 한 곳에 있게 하려는 것이다.
 
@@ -50,7 +50,7 @@ storage 항목(`defineItem`)은 `utils/blocklist.ts`와 `utils/settings.ts` 밖�
 | `popup/` | action.default_popup | 차단 기능 스위치, 차단한 수와 차단 목록 페이지를 여는 버튼, 영구/임시 차단 설정, 답글 범위와 디버그 패널 스위치 |
 | `options/` | options_ui (`open_in_tab`) | 설정 페이지. 차단 목록(보기와 편집)과 언어 두 탭. 브라우저 탭 하나로 열린다 |
 | `onboarding/` | (manifest에 없음, `onboarding.html`) | 첫 사용 안내. 처음 설치하면 백그라운드가 탭으로 연다 |
-| `background.ts` | background (`service_worker`) | 처음 설치하면(`runtime.onInstalled`, `reason === 'install'`) 첫 사용 안내 탭을 연다. 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화". 차단 기능이 꺼져 있으면 툴바 아이콘에 배지를 붙인다. 아래 "꺼짐 배지" |
+| `background.ts` | background (`service_worker`) | 처음 설치하면(`runtime.onInstalled`, `reason === 'install'`) 첫 사용 안내 탭을 연다. 업데이트되면 열려 있는 유튜브 탭에 새 콘텐츠 스크립트를 넣는다. 아래 "업데이트 뒤 다시 넣기". 차단 목록을 다른 PC와 맞춘다. 아래 "차단 목록 동기화". 차단 기능이 꺼져 있으면 툴바 아이콘에 배지를 붙인다. 아래 "꺼짐 배지" |
 
 ## 저장
 
@@ -143,6 +143,17 @@ chrome.storage.sync blocked.00 ~ blocked.31
 
 `enabled`도 `sync:settings` 안이라 한 PC에서 끄면 같은 계정의 다른 PC도 꺼진다.
 
+### 업데이트 뒤 다시 넣기: `entrypoints/background.ts`
+
+크롬은 확장을 업데이트해도 이미 열려 있는 탭에는 새 콘텐츠 스크립트를 넣어 주지 않는다. 옛 스크립트는 끊겨서 붙여 둔 것을 떼고 멈추므로("스크립트가 끊길 때"), 그대로면 새로 고칠 때까지 차단이 풀려 있다.
+
+- `runtime.onInstalled`의 `reason`이 `update`면 `reinjectContentScripts()`가 열려 있는 유튜브 탭마다 `scripting.insertCSS`로 `youtube.css`, `scripting.executeScript`로 `youtube-main.js`(`world: 'MAIN'`)와 `youtube.js`를 넣는다. 압축해제 확장을 다시 로드하는 것도 `update`다.
+- 새 스크립트가 들어오는 순간 옛 스크립트가 떼고, 새 스크립트가 설정과 목록을 읽어 다시 가린다. 그 사이 풀려 보이는 시간은 실측 약 15ms(한 프레임)였다.
+- 옛 CSS는 뗄 수 없어 탭에 남는다. 새 CSS를 뒤에 얹어서 바뀐 규칙은 새것이 이긴다. 없어진 규칙은 새로 고칠 때까지 남는다.
+- 잠든 탭처럼 넣을 수 없는 탭은 넘어간다. 다시 불러올 때 크롬이 넣는다.
+- 이 때문에 manifest에 `scripting` 권한과 유튜브 호스트 권한(`host_permissions`)이 있다(`wxt.config.ts`). 호스트는 콘텐츠 스크립트의 `matches`와 같다.
+- 설치할 때(`install`)는 넣지 않는다. 설치 전에 열어 둔 유튜브 탭은 새로 고쳐야 동작한다.
+
 ### 꺼짐 배지: `entrypoints/background.ts`
 
 차단 기능(`enabled`)이 꺼져 있으면 툴바 아이콘에 배지를 붙인다. 꺼 둔 것을 잊으면 확장이 고장 난 것처럼 보여서다.
@@ -181,6 +192,17 @@ chrome.storage.sync blocked.00 ~ blocked.31
 4. 만료 타이머. 가장 먼저 풀리는 임시 차단 시각에 맞춰 다시 스캔한다. 스캔은 DOM이 바뀔 때만 돌아서, 타이머가 없으면 기간이 끝나도 화면이 바뀔 때까지 가려져 있다. `setTimeout`의 최대 지연(약 24.8일)을 넘는 기간은 그만큼씩 끊어서 다시 건다.
 
 스캔과 만료의 타이머는 WXT의 `ctx.setTimeout`이 아니라 그냥 `setTimeout`으로 걸고 `ctx.onInvalidated` 한 곳에서 치운다. `ctx.setTimeout`은 부를 때마다 정리용 리스너를 하나씩 달고 떼지 않아서(WXT 0.21), 탭이 열려 있는 내내 걸리는 타이머에 쓰면 리스너가 쌓인다.
+
+#### 스크립트가 끊길 때
+
+확장이 업데이트되거나 꺼지거나 지워지면, 열려 있던 탭의 이 스크립트는 계속 돌지만 확장기능 API를 더 쓰지 못한다(저장소 알림도 오지 않는다). 그대로 두면 해제해도 풀리지 않는 가림과 눌러도 열리지 않는 메뉴 버튼이 남는다. 그래서 끊기면 붙여 둔 것을 모두 떼고 멈춘다.
+
+- 끊긴 것을 아는 길은 둘이다.
+  - 같은 스크립트가 새로 들어오면 WXT가 `document`에 이벤트를 쏘고, 먼저 있던 것의 `ctx`가 그 자리에서 끊긴다. 업데이트 때 백그라운드가 넣는 새 스크립트가 이 길이다(아래 "업데이트 뒤 다시 넣기").
+  - 확장이 꺼지거나 지워진 것은 아무도 알려 주지 않는다. `ctx.isInvalid`를 읽어야 알게 된다. `MutationObserver` 콜백의 맨 앞과 메뉴 버튼을 누를 때 읽는다. 그래서 화면이 가만히 있는 동안은 남아 있고, 화면이 바뀌거나 버튼을 누르면 그때 떼어진다(실측).
+- 끊기면(`ctx.onInvalidated`) 감시를 멈추고, 타이머를 치우고, `clearDisplay()`가 가림 속성과 가림막을, 메뉴가 버튼을 문서에서 모두 뗀다. 메뉴와 패널의 Shadow DOM 호스트는 WXT가 뗀다.
+- 저장소 구독은 풀다가 오류가 나면 넘어간다. 확장이 이미 없으면 `storage`를 부르는 것만으로 오류가 난다.
+- 크롬은 확장이 내려가도 콘텐츠 스크립트의 CSS를 탭에 남겨 둔다(실측). 속성을 떼지 않으면 지운 뒤에도 가려져 있다.
 
 유튜브는 댓글 정렬을 바꾸면 댓글 요소를 그대로 두고 내용만 바꾼다(2026-11-15 실측, 다른 영상으로 옮길 때는 새 요소다). 이때는 새로 붙은 댓글이 없어서 150ms로 묶은 전체 스캔이 맞춘다. 그 사이 약 160ms 동안 앞 댓글의 가림이 남는다. [backlog.md](backlog.md)에 적어 두었다.
 
@@ -258,6 +280,8 @@ chrome.storage.sync blocked.00 ~ blocked.31
 스스로 DOM을 감시하지 않는다. `dispatchEvent`는 듣는 쪽이 끝나야 돌아오므로, 격리 세계가 스캔 직전에 요청하면 스캔할 때 속성이 항상 최신이다. 감시와 디바운스는 격리 세계 한 곳에만 있다.
 
 `document_start`에 등록한다. 격리 세계(`document_idle`)의 첫 요청보다 먼저 듣고 있어야 하기 때문이다.
+
+시작하면서 `document`에 `cleantube:main-started` 이벤트를 쏘고, 자기도 그 이벤트를 듣는다. 업데이트 뒤 백그라운드가 이 스크립트를 새로 넣으면 먼저 있던 것이 듣기를 그만둔다(`AbortController`). 둘이 같이 들으면 옛 코드도 속성을 적는다. 페이지 세계에는 WXT의 `ctx`가 없어서 직접 한다.
 
 ### 작성자 읽기
 

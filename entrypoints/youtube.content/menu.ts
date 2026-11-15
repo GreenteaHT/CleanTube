@@ -89,6 +89,10 @@ export async function createCommentMenu(
   });
   ctx.addEventListener(window, 'scroll', close, { capture: true, passive: true });
   ctx.addEventListener(window, 'wxt:locationchange', close);
+  // 이 스크립트가 끊기면(확장이 꺼지거나 업데이트됨) 메뉴가 사라져 버튼을 눌러도 열리지 않는다. 죽은 버튼을 남기지 않는다.
+  ctx.onInvalidated(() => {
+    for (const trigger of document.querySelectorAll(`[${TRIGGER_ATTR}]`)) trigger.remove();
+  });
 
   return {
     attach(comment) {
@@ -124,6 +128,8 @@ export async function createCommentMenu(
     button.innerHTML = ICON;
     button.addEventListener('click', (e) => {
       e.stopPropagation();
+      // 확장이 꺼진 뒤 화면이 가만히 있었으면 아직 끊긴 줄 모른다. 여기서 알게 되면 버튼이 치워진다.
+      if (ctx.isInvalid) return;
       if (openTrigger === button) close();
       else open(button, comment);
     });

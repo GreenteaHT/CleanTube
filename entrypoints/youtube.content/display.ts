@@ -95,6 +95,14 @@ export function applyDisplay(comment: HTMLElement, display: Display | null, opti
   if (hideKey === null) setHidden(hideTarget, null, animate);
 }
 
+/** 문서에서 우리가 붙인 속성과 가림막을 모두 뗀다. 이 스크립트가 끊길 때 부른다. 그 뒤로는 떼 줄 것이 없다. */
+export function clearDisplay(): void {
+  for (const overlay of document.querySelectorAll(`[${OVERLAY_ATTR}]`)) overlay.remove();
+  for (const attr of [BLOCKED_ATTR, COVER_ATTR, REVEALED_ATTR]) {
+    for (const el of document.querySelectorAll(`[${attr}]`)) el.removeAttribute(attr);
+  }
+}
+
 // --- 완전히 숨김 ---
 
 /** 접히거나 펼쳐지는 중인 요소. 끝나면 desired에 적힌 최신 상태를 적용한다. */

@@ -13,6 +13,9 @@ export default defineConfig({
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
     default_locale: 'en',
-    permissions: ['storage'],
+    // scripting과 유튜브 호스트 권한은 업데이트 뒤 열려 있는 유튜브 탭에 새 콘텐츠 스크립트를 넣는 데 쓴다(background.ts).
+    // 호스트는 콘텐츠 스크립트의 matches와 같아서 설치할 때의 권한 안내가 늘지 않는다.
+    permissions: ['storage', 'scripting'],
+    host_permissions: ['*://*.youtube.com/*'],
   },
 });
